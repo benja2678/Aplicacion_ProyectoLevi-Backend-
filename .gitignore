@@ -1,0 +1,37 @@
+# Secretos: NUNCA subir al repositorio
+.env
+deploy/.env
+
+# Entorno virtual de Python
+.venv/
+venv/
+env/
+
+# Archivos generados por Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Base de datos local (SQLite) y archivos generados por Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Respaldos de la base de datos
+backups/
+*.sql.gz
+*.dump
+
+# Por si alguna vez se copia algo del frontend
+node_modules/
+dist/
+
+# Editor y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
