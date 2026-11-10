@@ -1,0 +1,9 @@
+# Librerías de Python del backend (versiones fijas para que todo se instale igual siempre).
+Django==5.2.19                         # framework web (versión LTS: soporte hasta abril 2028)
+djangorestframework==3.16.1            # para construir la API REST
+djangorestframework-simplejwt==5.5.1   # tokens JWT (login del profesor)
+psycopg[binary]==3.3.8                 # conexión con PostgreSQL
+whitenoise==6.12.0                     # sirve el CSS/JS del panel /admin/
+gunicorn==23.0.0                       # servidor de producción (solo funciona en Linux/Docker)
+python-dotenv==1.2.4                   # lee el archivo .env en tu PC
+tzdata==2026.6                         # zonas horarias (America/Santiago)

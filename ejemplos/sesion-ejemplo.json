@@ -1,0 +1,60 @@
+{
+  "participantCode": "A001",
+  "experimentId": "T0",
+  "experimentTitle": "Uso del multímetro",
+  "appVersion": "1.0.0",
+  "device": "Meta Quest 3S",
+  "startedAt": "2026-11-05T10:31:12",
+  "finishedAt": "2026-11-05T10:45:02",
+  "completed": true,
+  "durationSeconds": 830.5,
+  "laboratorySeconds": 700.25,
+  "correctCount": 1,
+  "taskCount": 2,
+  "events": [
+    {
+      "t": 12.5,
+      "type": "lectura",
+      "task": "V1",
+      "detail": "",
+      "measured": 4.98,
+      "expected": 5.0,
+      "verdict": "Correct",
+      "attempt": 1,
+      "selector": "VDC",
+      "jack": "VOmA"
+    },
+    {
+      "t": 40.0,
+      "type": "rechazo",
+      "task": "V2",
+      "detail": "MeterOff",
+      "measured": 0,
+      "expected": 3.3,
+      "verdict": "",
+      "attempt": 0,
+      "selector": "OFF",
+      "jack": ""
+    }
+  ],
+  "tasks": [
+    {
+      "id": "V1",
+      "attempts": 1,
+      "rejected": 0,
+      "finalVerdict": "Correct",
+      "firstCorrectAttempt": 1,
+      "firstReadingSeconds": 12.5,
+      "firstCorrectSeconds": 12.5
+    },
+    {
+      "id": "V2",
+      "attempts": 0,
+      "rejected": 1,
+      "finalVerdict": "SinRegistrar",
+      "firstCorrectAttempt": 0,
+      "firstReadingSeconds": -1,
+      "firstCorrectSeconds": -1
+    }
+  ]
+}
