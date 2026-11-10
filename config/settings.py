@@ -216,7 +216,7 @@ REST_FRAMEWORK = {
     # Las únicas excepciones (login y envío de Unity) lo indican en su vista.
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAdminUser'],
-    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+    'DEFAULT_RENDERER_CLASSES': ['lab.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
     # Límite de intentos de login por dirección IP.
     'DEFAULT_THROTTLE_RATES': {'login': env('LOGIN_RATE', '5/min')},

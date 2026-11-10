@@ -24,6 +24,14 @@ class IngestTests(BaseApiTest):
         self.assertEqual(s.source, 'visor')
         self.assertEqual(s.started_at, '2026-11-05T10:31:12')  # tal cual, sin zona horaria
 
+    def test_respuesta_declara_utf8(self):
+        # Sin charset, PowerShell 5.1 mostraba "SesiÃ³n guardada."
+        self.use_unity_key()
+        r = self.post_raw(json.dumps(session_log()))
+        self.assertEqual(r['Content-Type'], 'application/json; charset=utf-8')
+        self.assertEqual(r.content.decode('utf-8'), json.dumps(r.json(), ensure_ascii=False, separators=(',', ':')))
+        self.assertEqual(r.json()['detail'], 'Sesión guardada.')
+
     def test_sesion_duplicada_responde_409(self):
         self.use_unity_key()
         self.assertEqual(self.post_raw(json.dumps(session_log())).status_code, 201)

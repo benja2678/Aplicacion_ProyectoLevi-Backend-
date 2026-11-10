@@ -93,7 +93,12 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 
 > ⚠️ `docker compose down -v` (con `-v`) **borra la base de datos**. No lo uses en el servidor.
 
-En el servidor (Linux) se usan los scripts `deploy/iniciar.sh` y `deploy/actualizar.sh`.
+## En el servidor
+
+- **[DEPLOY.md](DEPLOY.md)**: instalación paso a paso (SSH, clonar, `.env`, encender,
+  cuenta del profesor, logs, actualizar, respaldos, https).
+- **[UNITY.md](UNITY.md)**: cómo configurar el asset `EnvioSesiones` de Unity para que
+  los visores envíen las sesiones.
 
 ## Archivos principales
 
@@ -106,6 +111,7 @@ En el servidor (Linux) se usan los scripts `deploy/iniciar.sh` y `deploy/actuali
 | `lab/views.py` | los endpoints de la API |
 | `lab/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
 | `lab/session_logs.py` | lee, valida y guarda los JSON de sesión (sin duplicados) |
+| `lab/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
 | `lab/management/commands/ensure_teacher.py` | crea la cuenta del profesor desde `.env` |
 | `lab/tests/` | tests: login, acceso sin token, llave de Unity, duplicados (409)… |
 | `scripts/probar_api.py` | prueba un backend encendido (tu PC o el servidor) |
@@ -119,3 +125,5 @@ En el servidor (Linux) se usan los scripts `deploy/iniciar.sh` y `deploy/actuali
 | `deploy/.env.example` | plantilla de variables para Docker (servidor) |
 | `deploy/iniciar.sh` | revisa que todo esté en su lugar y enciende el sistema |
 | `deploy/actualizar.sh` | `git pull` de los 3 repos + respaldo de la BD + reconstruir |
+| `DEPLOY.md` | guía de instalación en el servidor |
+| `UNITY.md` | guía para configurar el envío desde Unity |
