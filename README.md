@@ -70,6 +70,31 @@ Otros comandos útiles:
 
 Panel de Django: http://localhost:8000/admin/ (con la cuenta del profesor).
 
+## Con Docker (el sistema completo)
+
+Lo mismo que correrá en el servidor: PostgreSQL + backend + Nginx con la página web.
+Necesita Docker Desktop encendido y los 3 repositorios uno al lado del otro.
+
+```powershell
+cd deploy
+copy .env.example .env          # 1. completa los valores (ver los comentarios del archivo)
+docker compose up -d --build    # 2. construye y enciende los 3 contenedores
+docker compose ps               # 3. los 3 deben aparecer "Up" (db además "healthy")
+```
+
+Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PORT`).
+
+| Comando (desde `deploy/`) | Qué hace |
+|---|---|
+| `docker compose logs -f backend` | ver los mensajes del backend (Ctrl+C para salir) |
+| `docker compose down` | apagar todo (**los datos se conservan**) |
+| `docker compose exec backend python manage.py changepassword profesor` | cambiar la clave del profesor |
+| `docker compose exec backend python manage.py test lab` | tests dentro de Docker (con PostgreSQL) |
+
+> ⚠️ `docker compose down -v` (con `-v`) **borra la base de datos**. No lo uses en el servidor.
+
+En el servidor (Linux) se usan los scripts `deploy/iniciar.sh` y `deploy/actualizar.sh`.
+
 ## Archivos principales
 
 | Archivo | Para qué sirve |
@@ -86,3 +111,11 @@ Panel de Django: http://localhost:8000/admin/ (con la cuenta del profesor).
 | `scripts/probar_api.py` | prueba un backend encendido (tu PC o el servidor) |
 | `ejemplos/sesion-ejemplo.json` | una sesión con el formato de Unity, para probar "Cargar sesiones" |
 | `.env.example` | plantilla de variables para tu PC |
+| `Dockerfile` | imagen del backend: Python 3.13 + gunicorn en el puerto 8000 |
+| `entrypoint.sh` | al arrancar el contenedor: espera la BD, migra, crea al profesor y arranca |
+| `.dockerignore` | lo que nunca entra a la imagen (`.env`, `deploy/`, venv, respaldos) |
+| `lab/management/commands/wait_for_db.py` | espera a que PostgreSQL acepte conexiones |
+| `deploy/docker-compose.yml` | los 3 contenedores juntos: `db`, `backend` y `frontend` (Nginx, puerto 80) |
+| `deploy/.env.example` | plantilla de variables para Docker (servidor) |
+| `deploy/iniciar.sh` | revisa que todo esté en su lugar y enciende el sistema |
+| `deploy/actualizar.sh` | `git pull` de los 3 repos + respaldo de la BD + reconstruir |

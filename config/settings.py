@@ -138,7 +138,10 @@ if env('POSTGRES_HOST'):
             'NAME': env('POSTGRES_DB', 'laboratorio'),
             'USER': env('POSTGRES_USER', 'laboratorio'),
             'PASSWORD': env('POSTGRES_PASSWORD'),
+            # Reutiliza la conexión hasta 60 s, pero antes revisa que siga viva
+            # (por ejemplo, si PostgreSQL se reinició).
             'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 else:

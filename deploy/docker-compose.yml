@@ -1,0 +1,71 @@
+# ------------------------------------------------------------------
+# Todo el sistema en 3 contenedores:
+#
+#   db        PostgreSQL. Sus datos viven en el volumen "datos_db" (no se pierden
+#             al reiniciar ni al actualizar).
+#   backend   Django + gunicorn (puerto 8000, solo visible dentro de Docker).
+#   frontend  Nginx: sirve la página web y reenvía /api/ y /admin/ al backend.
+#             Es el ÚNICO con un puerto abierto hacia afuera (80).
+#
+# Los 3 repositorios deben estar uno al lado del otro con estos nombres:
+#   proyecto-backend/   (este)
+#   proyecto-db/
+#   Aplicacion_tesis/
+#
+# Uso (desde esta carpeta deploy/):   sh iniciar.sh
+# Las contraseñas y llaves se leen de deploy/.env (copia de .env.example).
+# ------------------------------------------------------------------
+name: laboratorio
+
+# Los registros (logs) de cada contenedor se limitan a 3 archivos de 10 MB,
+# para que no llenen el disco del servidor con el tiempo.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    build: ../../proyecto-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-laboratorio}
+      POSTGRES_USER: ${POSTGRES_USER:-laboratorio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en deploy/.env}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+    # Sin "ports": la base de datos no se puede alcanzar desde fuera del servidor.
+    logging: *logging
+
+  backend:
+    build: ..
+    restart: unless-stopped
+    # Pasa al backend todas las variables de deploy/.env ...
+    env_file: .env
+    # ... y estas, que siempre valen lo mismo dentro de Docker.
+    environment:
+      DEBUG: "false"
+      POSTGRES_HOST: db
+      # Cuántos proxies hay delante de Django (Nginx = 1). Sirve para conocer la IP
+      # real de quien intenta iniciar sesión.
+      NUM_PROXIES: ${NUM_PROXIES:-1}
+    depends_on:
+      db:
+        condition: service_healthy   # espera a que PostgreSQL responda
+    logging: *logging
+
+  frontend:
+    build:
+      context: ../../Aplicacion_tesis/frontend
+      args:
+        VITE_DATA_SOURCE: api
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - backend
+    logging: *logging
+
+volumes:
+  datos_db:

@@ -1,0 +1,27 @@
+# Archivos que NO se copian a la imagen de Docker.
+
+# Secretos: nunca dentro de la imagen (llegan como variables de entorno).
+.env
+deploy/
+
+# Entorno virtual y archivos generados en tu PC
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Respaldos (tienen datos de alumnos)
+backups/
+*.sql.gz
+*.dump
+
+# Git y editor
+.git/
+.vscode/
+.idea/
+*.log
