@@ -128,14 +128,8 @@ Al final muestra el estado de los contenedores. Los 3 deben decir `Up`, y `db` a
 1. En el navegador de tu PC abre `http://IP-DEL-SERVIDOR/` (o `http://IP-DEL-SERVIDOR:8080/`
    si cambiaste el puerto). Debe aparecer la pantalla de login.
 2. Entra con `profesor` y la clave que pusiste en `TEACHER_PASSWORD`.
-3. Prueba automática completa (en el servidor):
-
-   ```sh
-   cd ~/laboratorio/proyecto-backend
-   python3 scripts/probar_api.py --url http://localhost --env deploy/.env
-   ```
-
-   Debe terminar con `Todo bien ✔`. (Si usas otro puerto: `--url http://localhost:8080`.)
+3. En el servidor, `curl http://localhost/api/health/` debe responder `{"status":"ok"}`.
+   (Si usas otro puerto: `curl http://localhost:8080/api/health/`.)
 
 ## 7. La cuenta del profesor
 

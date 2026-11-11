@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ENTORNO = os.environ.get('ENTORNO', 'dev').strip().lower()
-if ENTORNO not in ('dev', 'prod'):
+if ENTORNO not in ('dev', 'prod', 'test'):  # 'test' lo fija config/settings_test.py
     raise ImproperlyConfigured('ENTORNO debe ser "dev" o "prod".')
 
 # Carga .env.dev o .env.prod si existe. Las variables que ya existen en el sistema
@@ -154,19 +154,13 @@ DATABASES = {
         # (por ejemplo, si PostgreSQL se reinició).
         'CONN_MAX_AGE': 60,
         'CONN_HEALTH_CHECKS': True,
-        # Base que crean los tests (y borran al terminar). El usuario necesita permiso
-        # para crear bases (CREATEDB). Por defecto: test_<nombre de la base>.
-        'TEST': {'NAME': env('POSTGRES_TEST_DB') or None},
     }
 }
 # Cifrado de la conexión, si el servidor lo pide (disable, require, verify-full…).
 if env('POSTGRES_SSLMODE'):
     DATABASES['default']['OPTIONS'] = {'sslmode': env('POSTGRES_SSLMODE')}
 
-# Carpeta con los scripts de levi-db-scripts. Solo la usan los tests, para crear las
-# tablas en la base de prueba (ver lab/tests/runner.py).
-LEVI_DB_SCRIPTS = Path(env('LEVI_DB_SCRIPTS', str(BASE_DIR.parent / 'levi-db-scripts')))
-TEST_RUNNER = 'lab.tests.runner.LeviTestRunner'
+# Los tests usan config/settings_test.py y una base propia en Docker (lab/tests/runner.py).
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

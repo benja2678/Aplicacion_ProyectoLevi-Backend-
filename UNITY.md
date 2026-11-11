@@ -23,17 +23,18 @@ Unity 6.3) para los Meta Quest. **No hay que cambiar código**: solo el asset
 
 ## 2. Probar desde tu PC antes de tocar Unity
 
-En PowerShell (cambia la IP y pega la llave):
+En PowerShell (cambia la IP y pega la llave). Se envía una sesión real que grabó un
+visor (código A015), guardada junto a los tests:
 
 ```powershell
 cd C:\Users\Usuario\Desktop\Proyecto_levi\proyecto-backend
 $key = 'PEGA-AQUI-LA-LLAVE'
-Invoke-RestMethod -Method Post -Uri http://IP-DEL-SERVIDOR/api/sessions/ingest/ -Headers @{ 'X-Api-Key' = $key } -ContentType 'application/json' -InFile ejemplos\sesion-ejemplo.json
+Invoke-RestMethod -Method Post -Uri http://IP-DEL-SERVIDOR/api/sessions/ingest/ -Headers @{ 'X-Api-Key' = $key } -ContentType 'application/json' -InFile lab\tests\datos\A015_N1_20261110_230751.json
 ```
 
 Debe responder `Sesión guardada.` (o un error **409 Conflict** si ya la habías enviado:
 también está bien). Si esto funciona, el servidor está listo para los visores.
-Después puedes borrar esa sesión de ejemplo desde el panel.
+Después puedes borrar esa sesión de prueba desde el panel `/admin/` (Sesiones).
 
 ## 3. Configurar el asset `EnvioSesiones`
 

@@ -1,18 +1,13 @@
-"""Ayudas comunes para los tests."""
+"""Datos y ayudas comunes para los tests."""
 
 import json
 from pathlib import Path
 
-from django.contrib.auth import get_user_model
-from django.core.cache import cache
+from django.contrib.auth.models import User
 from django.db import connection
-from django.test import override_settings
-from rest_framework.test import APITestCase
-from rest_framework_simplejwt.tokens import RefreshToken
 
-TEST_API_KEY = 'llave-de-prueba-unity-123'
-TEACHER_PASSWORD = 'Clave-Del-Profesor-2026'
 DATOS = Path(__file__).resolve().parent / 'datos'
+TEST_API_KEY = 'llave-de-prueba-unity-123'
 
 # Títulos del catálogo (levi-db-scripts v2.1): el panel recibe el título de la base.
 TITULOS = {
@@ -22,8 +17,12 @@ TITULOS = {
 }
 
 
+# ------------------------------------------------------------------ #
+# Sesiones con la misma forma que genera Unity (SessionLog.cs)
+
+
 def evento(t, tipo, task='', detail='', **extra):
-    """Un evento con todos sus campos, como los escribe Unity (los que no aplican en cero)."""
+    """Un evento con todos sus campos (los que no aplican, en cero o vacíos, como Unity)."""
     e = {'t': t, 'type': tipo, 'task': task, 'detail': detail, 'measured': 0.0, 'expected': 0.0,
          'verdict': '', 'attempt': 0, 'selector': '', 'jack': ''}
     e.update(extra)
@@ -37,9 +36,8 @@ def tarea(codigo, final='SinRegistrar', attempts=0, rejected=0, first_correct=0,
 
 
 def session_log(code='A001', experiment='N1', started='2026-11-05T10:31:12', **extra):
-    """Un SessionLog de N1 con la misma forma que genera Unity (SessionLog.cs).
-    Incluye cada clase de dato que se guarda en una tabla distinta: lectura, rechazo,
-    paso del tutorial y pizarra (etiqueta), diagnóstico y etapas."""
+    """Una sesión de N1 con cada clase de dato que va a una tabla distinta: lectura,
+    rechazo, paso del tutorial y pizarra (etiqueta), diagnóstico y etapas."""
     log = {
         'participantCode': code,
         'experimentId': experiment,
@@ -75,39 +73,57 @@ def session_log(code='A001', experiment='N1', started='2026-11-05T10:31:12', **e
     return log
 
 
+def session_log_t0(code='A001', started='2026-11-04T09:15:00'):
+    """Una sesión del tutorial T0 (una sola medición, V_R1)."""
+    return {
+        'participantCode': code,
+        'experimentId': 'T0',
+        'experimentTitle': TITULOS['T0'],
+        'appVersion': '0.9-feria',
+        'device': 'Meta Quest 3S',
+        'startedAt': started,
+        'finishedAt': '2026-11-04T09:15:35',
+        'completed': True,
+        'durationSeconds': 35.0,
+        'laboratorySeconds': 15.0,
+        'correctCount': 1,
+        'taskCount': 1,
+        'events': [
+            evento(0.0, 'etapa', detail='Briefing'),
+            evento(3.2, 'tutorial', task='comenzar', detail='cumplido'),
+            evento(8.75, 'tutorial', task='tomar', detail='cumplido'),
+            evento(15.1, 'tutorial', task='selector', detail='cumplido'),
+            evento(20.0, 'etapa', detail='Laboratory'),
+            evento(24.5, 'rechazo', task='V_R1', detail='MeterOff', selector='OFF', jack='VoltOhmMilliamp'),
+            evento(30.25, 'lectura', task='V_R1', measured=2.5, expected=2.4876, verdict='Correct', attempt=1,
+                   selector='20 V', jack='VoltOhmMilliamp'),
+            evento(35.0, 'etapa', detail='Results'),
+        ],
+        'tasks': [tarea('V_R1', 'Correct', attempts=1, rejected=1, first_correct=1, first_reading=30.25, first_ok=30.25)],
+    }
+
+
 def sesion_real_del_visor() -> dict:
-    """El JSON que envió un visor de verdad (lo entregó el equipo de Unity)."""
+    """El JSON que envió un visor de verdad (A015, experimento N1)."""
     return json.loads((DATOS / 'A015_N1_20261110_230751.json').read_text(encoding='utf-8'))
 
 
+# ------------------------------------------------------------------ #
+# Otros
+
+
+def profesor_sin_base() -> User:
+    """Un usuario profesor que NO está en la base (para tests sin base de datos)."""
+    return User(id=1, username='profesor', first_name='Ana', last_name='Pérez', is_staff=True, is_active=True)
+
+
 def sql_uno(sql, parametros=()):
-    """Primera columna de la primera fila (para revisar la base en los tests)."""
+    """Primera columna de la primera fila (para revisar la base en los tests del DAO)."""
     with connection.cursor() as cursor:
         cursor.execute(sql, parametros)
         fila = cursor.fetchone()
     return fila[0] if fila else None
 
 
-def contar(tabla: str) -> int:
-    return sql_uno(f'select count(*) from {tabla}')
-
-
-@override_settings(UNITY_API_KEY=TEST_API_KEY)
-class BaseApiTest(APITestCase):
-    def setUp(self):
-        cache.clear()  # reinicia el contador de intentos de login
-        User = get_user_model()
-        self.teacher = User.objects.create_user('profesor', password=TEACHER_PASSWORD, is_staff=True)
-
-    def login_as_teacher(self):
-        """Pone en el cliente un token válido del profesor (sin pasar por /login/)."""
-        access = RefreshToken.for_user(self.teacher).access_token
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
-
-    def use_unity_key(self, key=TEST_API_KEY):
-        self.client.credentials(HTTP_X_API_KEY=key)
-
-    def ingest(self, log, key=TEST_API_KEY):
-        """Envía una sesión como lo hace Unity, sin tocar las credenciales del cliente."""
-        return self.client.generic('POST', '/api/sessions/ingest/', json.dumps(log),
-                                   content_type='application/json', HTTP_X_API_KEY=key)
+def contar(tabla: str, donde: str = 'true', parametros=()) -> int:
+    return sql_uno(f'select count(*) from {tabla} where {donde}', parametros)

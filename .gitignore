@@ -16,9 +16,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Archivos generados por Django (y la base SQLite de versiones antiguas)
-db.sqlite3
-db.sqlite3-journal
+# Archivos generados por Django
 staticfiles/
 media/
 

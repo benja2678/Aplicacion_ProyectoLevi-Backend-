@@ -109,22 +109,41 @@ copy .env.dev.example .env.dev                     # 3. crea tu .env.dev y compl
 Otros comandos útiles:
 
 ```powershell
-.venv\Scripts\python manage.py test lab                 # tests automáticos (ver abajo)
-.venv\Scripts\python scripts\probar_api.py              # prueba el backend encendido
+.venv\Scripts\python manage.py test lab                 # tests unitarios (ver abajo)
 .venv\Scripts\python manage.py changepassword profesor  # cambiar la contraseña del profesor
 .venv\Scripts\python manage.py createsuperuser          # otra forma de crear la cuenta
 ```
 
-### Tests
-
-`manage.py test lab` crea una base de prueba aparte (`test_<POSTGRES_DB>`), le aplica
-los scripts de `levi-db-scripts` (lista en `lab/tests/runner.py`) y la borra al terminar.
-Necesita:
-
-- que el usuario de PostgreSQL pueda crear bases (permiso `CREATEDB`);
-- la carpeta `levi-db-scripts` junto a este repositorio (o su ruta en `LEVI_DB_SCRIPTS`).
-
 Panel de Django: http://localhost:8000/admin/ (con la cuenta del profesor).
+
+## Tests unitarios
+
+```powershell
+.venv\Scripts\python manage.py test lab                    # todos (necesita Docker Desktop abierto)
+.venv\Scripts\python manage.py test lab.tests.dto          # solo una capa (dto, servicios, controladores, dao)
+.venv\Scripts\python manage.py test lab.tests.servicios.test_alumno_servicio   # solo un archivo
+```
+
+Cada capa de `lab/` tiene sus tests en `lab/tests/`:
+
+| Carpeta | Qué prueba | Base de datos |
+|---|---|---|
+| `dto/` | validación del JSON y forma de las respuestas | no |
+| `servicios/` | reglas del negocio (el DAO se simula con *mocks*) | no |
+| `controladores/` | rutas, permisos, códigos HTTP y forma del JSON (el servicio se simula) | solo el login |
+| `dao/` | las consultas SQL, contra un PostgreSQL de verdad | **sí** |
+| `test_auth.py`, `test_admin.py`, `test_renderers.py`, `test_comandos.py` | el resto del código de `lab/` | solo `ensure_teacher` |
+
+**La base de prueba** (la arma `lab/tests/runner.py`):
+
+1. Si algún test la necesita, se levanta un **PostgreSQL 16 nuevo en Docker** (puerto al azar,
+   solo en tu PC). Los tests que no usan base corren sin Docker.
+2. Se carga **`lab/tests/datos/base_pruebas.sql`**: el esquema actual de `levi-db-scripts`
+   (v2.0 a v2.3) con datos de prueba conocidos. Su encabezado explica qué datos trae.
+3. Al terminar, **el contenedor se borra** con todo lo que tenía, aunque algún test falle.
+
+Los tests usan `config/settings_test.py`: nunca leen `.env.dev`/`.env.prod` ni se
+conectan a las bases de desarrollo o producción.
 
 ## Con Docker (el sistema completo)
 
@@ -149,7 +168,6 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `docker compose logs -f backend` | ver los mensajes del backend (Ctrl+C para salir) |
 | `docker compose down` | apagar todo (**los datos se conservan**) |
 | `docker compose exec backend python manage.py changepassword profesor` | cambiar la clave del profesor |
-| `docker compose exec backend python manage.py test lab` | tests dentro de Docker (con PostgreSQL) |
 
 > ⚠️ `docker compose down -v` (con `-v`) **borra la base de datos**. No lo uses en el servidor.
 
@@ -177,11 +195,11 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `lab/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
 | `lab/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
 | `lab/management/commands/ensure_teacher.py` | crea la cuenta del profesor desde `.env.dev` / `.env.prod` |
-| `lab/tests/` | tests: login, acceso sin token, llave de Unity, duplicados (409), catálogo, admin… |
-| `lab/tests/runner.py` | crea las tablas de `levi-db-scripts` en la base de prueba |
-| `lab/tests/datos/` | un JSON real enviado por un visor (A015), usado en los tests |
-| `scripts/probar_api.py` | prueba un backend encendido (tu PC o el servidor) |
-| `ejemplos/sesion-ejemplo.json` | una sesión con el formato de Unity, para probar "Cargar sesiones" |
+| `config/settings_test.py` | configuración de los tests (no lee `.env.dev`/`.env.prod`) |
+| `lab/tests/` | tests unitarios, una carpeta por capa (ver "Tests unitarios") |
+| `lab/tests/runner.py` | levanta el PostgreSQL de prueba en Docker y lo borra al terminar |
+| `lab/tests/datos/base_pruebas.sql` | la base de prueba: esquema actual + datos de prueba conocidos |
+| `lab/tests/datos/A015_…json` | un JSON real enviado por un visor, usado en los tests |
 | `.env.dev.example` / `.env.prod.example` | plantillas de variables de cada entorno |
 | `Dockerfile` | imagen del backend: Python 3.13 + gunicorn en el puerto 8000 |
 | `entrypoint.sh` | al arrancar el contenedor: espera la BD, migra, crea al profesor y arranca |

@@ -11,8 +11,6 @@ venv/
 env/
 __pycache__/
 *.py[cod]
-db.sqlite3
-db.sqlite3-journal
 staticfiles/
 media/
 
@@ -26,3 +24,6 @@ backups/
 .vscode/
 .idea/
 *.log
+
+# Tests: se ejecutan en tu PC (necesitan Docker), no dentro del servidor
+lab/tests/
