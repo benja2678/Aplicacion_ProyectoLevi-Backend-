@@ -1,5 +1,8 @@
-"""Tests unitarios del comando wait_for_db (lo ejecuta entrypoint.sh al arrancar).
-La conexión a la base se simula: no usa base de datos."""
+"""Tests unitarios de los comandos de lab/management/commands/ (sin base de datos).
+
+- wait_for_db: lo ejecuta entrypoint.sh al arrancar. La conexión se simula.
+- clave_lector: pone la contraseña de un lector. El servicio y el teclado se simulan.
+"""
 
 from io import StringIO
 from unittest import mock
@@ -9,7 +12,11 @@ from django.core.management.base import CommandError
 from django.db.utils import OperationalError
 from django.test import SimpleTestCase
 
+from lab.dto.lector import LectorDTO
+from lab.utils.errores import DatosInvalidos
+
 WAIT = 'lab.management.commands.wait_for_db'
+CLAVE = 'lab.management.commands.clave_lector'
 
 
 class WaitForDbTests(SimpleTestCase):
@@ -33,3 +40,35 @@ class WaitForDbTests(SimpleTestCase):
         with self.assertRaises(CommandError):
             self.esperar(OperationalError('apagada'), '--timeout', '0')
 
+
+class ClaveLectorTests(SimpleTestCase):
+    def setUp(self):
+        self.servicio = mock.patch(f'{CLAVE}.acceso_servicio').start()
+        self.teclado = mock.patch(f'{CLAVE}.getpass').start()
+        self.addCleanup(mock.patch.stopall)
+        self.servicio.asignar_clave.return_value = LectorDTO('docente@uta.cl', 'Docente', 'docente', 'hash')
+
+    def test_pone_la_clave(self):
+        self.teclado.side_effect = ['Clave-Larga-2026', 'Clave-Larga-2026']
+        salida = StringIO()
+        call_command('clave_lector', 'docente@uta.cl', stdout=salida)
+        self.servicio.asignar_clave.assert_called_once_with('docente@uta.cl', 'Clave-Larga-2026', None, 'docente')
+        self.assertIn('ya puede entrar al panel', salida.getvalue())
+
+    def test_agrega_un_lector_nuevo(self):
+        self.teclado.side_effect = ['Clave-Larga-2026', 'Clave-Larga-2026']
+        call_command('clave_lector', 'nuevo@uta.cl', '--nombre', 'Ana', '--rol', 'equipo', stdout=StringIO())
+        self.servicio.asignar_clave.assert_called_once_with('nuevo@uta.cl', 'Clave-Larga-2026', 'Ana', 'equipo')
+
+    def test_las_claves_no_coinciden(self):
+        self.teclado.side_effect = ['Clave-Larga-2026', 'Otra-Clave-2026']
+        with self.assertRaises(CommandError):
+            call_command('clave_lector', 'docente@uta.cl', stdout=StringIO())
+        self.servicio.asignar_clave.assert_not_called()
+
+    def test_error_del_servicio(self):
+        self.teclado.side_effect = ['corta', 'corta']
+        self.servicio.asignar_clave.side_effect = DatosInvalidos('Esta contraseña es demasiado corta.')
+        with self.assertRaises(CommandError) as ctx:
+            call_command('clave_lector', 'docente@uta.cl', stdout=StringIO())
+        self.assertIn('demasiado corta', str(ctx.exception))

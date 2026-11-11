@@ -1,72 +1,103 @@
 """Tests de lab/controladores/estado.py (health, login, refresh, logout, me).
 
-- Health y "quién soy": unitarios, sin base de datos.
-- Login, refresh y logout: usan la base de prueba en Docker, porque los usuarios, los
-  tokens invalidados y el contador de intentos se guardan en tablas de Django.
+El servicio de acceso se simula (mock). Solo el límite de intentos usa la base de
+prueba en Docker, porque el contador se guarda en la caché de la base.
 """
 
-from django.contrib.auth import get_user_model
+from unittest import mock
+
 from django.core.cache import cache
 from rest_framework.test import APISimpleTestCase, APITestCase
 
-from ..ayudas import profesor_sin_base
+from lab.dto.lector import CredencialesDTO
+from lab.utils.errores import NoAutorizado
 
-CLAVE = 'Clave-Del-Profesor-2026'
+from ..ayudas import lector_sin_base
+
+SERVICIO = 'lab.controladores.estado.acceso_servicio'
+TOKENS = {'access': 'aaa', 'refresh': 'rrr'}
 
 
-class EstadoSinBaseTests(APISimpleTestCase):
+class EstadoTests(APISimpleTestCase):
+    def setUp(self):
+        self.servicio = mock.patch(SERVICIO).start()
+        self.addCleanup(mock.patch.stopall)
+
     def test_health_es_publico(self):
         r = self.client.get('/api/health/')
         self.assertEqual((r.status_code, r.json()), (200, {'status': 'ok'}))
 
     def test_quien_soy(self):
-        self.client.force_authenticate(user=profesor_sin_base())
-        self.assertEqual(self.client.get('/api/auth/me/').json(), {'username': 'profesor', 'nombre': 'Ana Pérez'})
+        self.client.force_authenticate(user=lector_sin_base())
+        self.assertEqual(self.client.get('/api/auth/me/').json(),
+                         {'username': 'docente@ejemplo.cl', 'nombre': 'Docente de prueba', 'rol': 'docente'})
 
-    def test_quien_soy_sin_token(self):
+    def test_quien_soy_sin_token_o_con_token_falso(self):
         self.assertEqual(self.client.get('/api/auth/me/').status_code, 401)
-
-    def test_token_falso(self):
         self.client.credentials(HTTP_AUTHORIZATION='Bearer esto-no-es-un-token')
         self.assertEqual(self.client.get('/api/auth/me/').status_code, 401)
 
+    def test_token_valido_de_un_lector_que_ya_no_tiene_acceso(self):
+        from rest_framework_simplejwt.tokens import AccessToken
 
-class LoginTests(APITestCase):
-    def setUp(self):
-        cache.clear()  # reinicia el contador de intentos de login
-        get_user_model().objects.create_user('profesor', password=CLAVE, is_staff=True)
-
-    def login(self, usuario='profesor', clave=CLAVE):
-        return self.client.post('/api/auth/login/', {'username': usuario, 'password': clave}, format='json')
-
-    def test_login_correcto_entrega_tokens_que_sirven(self):
-        r = self.login()
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(set(r.data), {'access', 'refresh'})
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {r.data["access"]}')
-        self.assertEqual(self.client.get('/api/auth/me/').data['username'], 'profesor')
-
-    def test_clave_incorrecta(self):
-        r = self.login(clave='otra')
+        token = AccessToken()
+        token['lector'] = 'docente@ejemplo.cl'
+        with mock.patch('lab.servicios.acceso_servicio.lector_del_token', return_value=None):
+            self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+            r = self.client.get('/api/auth/me/')
         self.assertEqual(r.status_code, 401)
-        self.assertEqual(r.data['detail'], 'Usuario o contraseña incorrectos.')
+        self.assertEqual(r.json()['detail'], 'Tu acceso ya no es válido. Vuelve a iniciar sesión.')
 
-    def test_usuario_que_no_es_profesor_no_puede_entrar(self):
-        get_user_model().objects.create_user('alumno', password='Clave-Del-Alumno-2026', is_staff=False)
-        self.assertEqual(self.login('alumno', 'Clave-Del-Alumno-2026').status_code, 401)
 
-    def test_limite_de_intentos(self):
+class SesionTests(APISimpleTestCase):
+    def setUp(self):
+        self.servicio = mock.patch(SERVICIO).start()
+        self.addCleanup(mock.patch.stopall)
+        # El login tiene límite de intentos (usa la caché de la base): aquí se desactiva.
+        mock.patch('lab.controladores.estado.LoginControlador.throttle_classes', []).start()
+
+    def test_login_correcto(self):
+        self.servicio.iniciar_sesion.return_value = TOKENS
+        r = self.client.post('/api/auth/login/', {'username': 'Docente@ejemplo.cl', 'password': 'x'}, format='json')
+        self.assertEqual((r.status_code, r.json()), (200, TOKENS))
+        self.servicio.iniciar_sesion.assert_called_once_with(CredencialesDTO('docente@ejemplo.cl', 'x'))
+
+    def test_login_incorrecto_401(self):
+        self.servicio.iniciar_sesion.side_effect = NoAutorizado('Correo o contraseña incorrectos.')
+        r = self.client.post('/api/auth/login/', {'email': 'a@b.cl', 'password': 'x'}, format='json')
+        self.assertEqual((r.status_code, r.json()), (401, {'detail': 'Correo o contraseña incorrectos.'}))
+
+    def test_login_sin_datos_400(self):
+        r = self.client.post('/api/auth/login/', {}, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.servicio.iniciar_sesion.assert_not_called()
+
+    def test_renovar(self):
+        self.servicio.renovar.return_value = {'access': 'nuevo'}
+        r = self.client.post('/api/auth/refresh/', {'refresh': 'rrr'}, format='json')
+        self.assertEqual((r.status_code, r.json()), (200, {'access': 'nuevo'}))
+        self.servicio.renovar.assert_called_once_with('rrr')
+
+    def test_renovar_vencido_401(self):
+        self.servicio.renovar.side_effect = NoAutorizado('La sesión venció o se cerró. Vuelve a iniciar sesión.')
+        self.assertEqual(self.client.post('/api/auth/refresh/', {'refresh': 'x'}, format='json').status_code, 401)
+
+    def test_cerrar_sesion(self):
+        r = self.client.post('/api/auth/logout/', {'refresh': 'rrr'}, format='json')
+        self.assertEqual((r.status_code, r.json()), (200, {}))
+        self.servicio.cerrar_sesion.assert_called_once_with('rrr')
+
+
+class LimiteDeIntentosTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+        servicio = mock.patch(SERVICIO).start()
+        self.addCleanup(mock.patch.stopall)
+        servicio.iniciar_sesion.side_effect = NoAutorizado('Correo o contraseña incorrectos.')
+
+    def test_sexto_intento_del_minuto_bloqueado(self):
         for _ in range(5):
-            self.assertEqual(self.login(clave='mal').status_code, 401)
-        # El sexto intento del mismo minuto se bloquea, aunque la clave sea correcta.
-        self.assertEqual(self.login().status_code, 429)
-
-    def test_refresh_entrega_un_access_nuevo(self):
-        r = self.client.post('/api/auth/refresh/', {'refresh': self.login().data['refresh']}, format='json')
-        self.assertEqual(r.status_code, 200)
-        self.assertIn('access', r.data)
-
-    def test_logout_invalida_el_refresh(self):
-        refresh = self.login().data['refresh']
-        self.assertEqual(self.client.post('/api/auth/logout/', {'refresh': refresh}, format='json').status_code, 200)
-        self.assertEqual(self.client.post('/api/auth/refresh/', {'refresh': refresh}, format='json').status_code, 401)
+            r = self.client.post('/api/auth/login/', {'email': 'a@b.cl', 'password': 'mal'}, format='json')
+            self.assertEqual(r.status_code, 401)
+        r = self.client.post('/api/auth/login/', {'email': 'a@b.cl', 'password': 'mal'}, format='json')
+        self.assertEqual(r.status_code, 429)

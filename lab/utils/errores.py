@@ -6,6 +6,7 @@ Ninguna de esas capas sabe de HTTP: el controlador los convierte en la respuesta
 correspondiente (ver controladores/errores.py).
 
     DatosInvalidos -> 400 Bad Request
+    NoAutorizado   -> 401 Unauthorized
     NoEncontrado   -> 404 Not Found
 """
 
@@ -30,6 +31,10 @@ class DatosInvalidos(ErrorDeNegocio):
 
     def como_respuesta(self) -> dict:
         return dict(self.campos) if self.campos else {'detail': self.detalle}
+
+
+class NoAutorizado(ErrorDeNegocio):
+    """Correo o contraseña incorrectos, o sesión vencida / cerrada."""
 
 
 class NoEncontrado(ErrorDeNegocio):

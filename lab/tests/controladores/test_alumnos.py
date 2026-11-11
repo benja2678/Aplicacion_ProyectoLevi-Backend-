@@ -12,7 +12,7 @@ from rest_framework.test import APISimpleTestCase
 from lab.dto.alumno import AlumnoDTO, AlumnoEntradaDTO
 from lab.utils.errores import DatosInvalidos, NoEncontrado
 
-from ..ayudas import profesor_sin_base
+from ..ayudas import lector_sin_base, usuario_django_sin_base
 
 CAMILA = AlumnoDTO(codigo='A001', nombre='Camila', apellido='Rojas', asignatura='Electrónica Digital',
                    registrado=datetime(2026, 11, 3, 15, 0, tzinfo=UTC))
@@ -24,7 +24,7 @@ class AlumnosControladorTests(APISimpleTestCase):
     def setUp(self):
         self.servicio = mock.patch('lab.controladores.alumnos.alumno_servicio').start()
         self.addCleanup(mock.patch.stopall)
-        self.client.force_authenticate(user=profesor_sin_base())
+        self.client.force_authenticate(user=lector_sin_base())
 
     def test_listar(self):
         self.servicio.listar.return_value = [CAMILA]
@@ -80,8 +80,6 @@ class AlumnosControladorTests(APISimpleTestCase):
     def test_sin_profesor_no_se_puede_entrar(self):
         self.client = self.client_class()  # cliente nuevo, sin usuario
         self.assertEqual(self.client.get('/api/students/').status_code, 401)
-        alumno = profesor_sin_base()
-        alumno.is_staff = False
-        self.client.force_authenticate(user=alumno)
+        self.client.force_authenticate(user=usuario_django_sin_base())  # cuenta de /admin/, no lector
         self.assertEqual(self.client.get('/api/students/').status_code, 403)
         self.servicio.listar.assert_not_called()

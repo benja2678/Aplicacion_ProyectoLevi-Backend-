@@ -1,7 +1,7 @@
 # Laboratorio VR · Backend (Django)
 
 API del panel docente del simulador de electrónica en realidad virtual (Unity, Meta Quest 3S).
-Recibe las sesiones que envían los visores y se las muestra **solo al profesor**.
+Recibe las sesiones que envían los visores y se las muestra **solo al docente y al equipo** (tabla `lector`).
 
 Va junto a los otros repositorios del proyecto:
 
@@ -39,20 +39,26 @@ no Django**. Django solo crea las suyas: usuarios, tokens invalidados y la cach�
 
 | Quién | Cómo entra | Qué puede hacer |
 |---|---|---|
-| Profesor (web) | usuario + contraseña → **token JWT** (dura 30 min y se renueva hasta 8 h) | todo |
+| Lector: docente o equipo (web) | correo + contraseña de la tabla **`lector`** → **token JWT** (dura 30 min y se renueva hasta 8 h) | todo |
 | Unity (Meta Quest) | llave fija en el encabezado `X-Api-Key` | **solo** enviar sesiones |
 | Cualquier otro | — | nada (401/403) |
 
-- No existe registro público: la cuenta del profesor se crea con un comando.
-- El login permite 5 intentos por minuto por IP; con más, responde 429.
+- **El acceso se controla en la base del servidor**, tabla `lector` (levi-db-scripts v2.4):
+  entra quien esté ahí, con rol `docente` o `equipo` y con clave. La clave se guarda cifrada.
+- Para dar acceso o cambiar una clave: `python manage.py clave_lector correo@dominio`
+  (pregunta la contraseña; con `--nombre "…" --rol equipo` agrega a alguien que no estaba).
+- Para quitar el acceso: borrar su fila de `lector` o dejar su `clave` en NULL. Se revisa
+  en cada petición, así que el efecto es **inmediato**.
+- No existe registro público. El login permite 5 intentos por minuto por IP (luego 429).
 - Al cerrar sesión, el token de renovación queda invalidado.
+- Las cuentas de Django (`createsuperuser`) sirven **solo** para el panel `/admin/`, no para la página.
 
 ## Endpoints (todos bajo `/api/`)
 
 | Método y ruta | Acceso | Para qué |
 |---|---|---|
 | `GET health/` | público | saber si el backend está vivo |
-| `POST auth/login/` | público (con límite) | `{username, password}` → `{access, refresh}` |
+| `POST auth/login/` | público (con límite) | `{username o email, password}` (el correo del lector) → `{access, refresh}` |
 | `POST auth/refresh/` | público | `{refresh}` → `{access}` nuevo |
 | `POST auth/logout/` | público | `{refresh}` → lo invalida |
 | `GET auth/me/` | token | datos del usuario conectado |
@@ -88,7 +94,8 @@ Remove-Item Env:ENTORNO                                           # vuelve a dev
 
 La base de datos de cada entorno debe tener los scripts de `levi-db-scripts` aplicados,
 en orden: `Version_2.0.0/levidb.sql`, `Version_2.1.0/insert_datosbase.sql`,
-`Version_2.2.0/alter_nombre_asign.sql` y `Version_2.3.0/alter_datos_visor.sql`.
+`Version_2.2.0/alter_nombre_asign.sql`, `Version_2.3.0/alter_datos_visor.sql` y
+`Version_2.4.0/alter_lector_clave.sql`.
 
 ## Usar en tu PC (sin Docker)
 
@@ -99,7 +106,7 @@ py -m venv .venv                                   # 1. crea el entorno de Pytho
 .venv\Scripts\python -m pip install -r requirements.txt   # 2. instala las librerías
 copy .env.dev.example .env.dev                     # 3. crea tu .env.dev y complétalo
 .venv\Scripts\python manage.py migrate             # 4. crea las tablas de Django (usuarios, tokens)
-.venv\Scripts\python manage.py createsuperuser     # 5. crea la cuenta del profesor (una vez; pregunta usuario y clave)
+.venv\Scripts\python manage.py clave_lector TU@CORREO  # 5. clave para entrar a la página (el correo debe estar en la tabla lector)
 .venv\Scripts\python manage.py runserver           # 6. arranca en http://localhost:8000
 ```
 
@@ -110,10 +117,11 @@ Otros comandos útiles:
 
 ```powershell
 .venv\Scripts\python manage.py test lab                 # tests unitarios (ver abajo)
-.venv\Scripts\python manage.py changepassword profesor  # cambiar la contraseña del profesor
+.venv\Scripts\python manage.py clave_lector TU@CORREO     # cambiar la contraseña de un lector
+.venv\Scripts\python manage.py createsuperuser             # cuenta SOLO para el panel /admin/
 ```
 
-Panel de Django: http://localhost:8000/admin/ (con la cuenta del profesor).
+Panel de Django: http://localhost:8000/admin/ (con una cuenta de `createsuperuser`).
 
 ## Tests unitarios
 
@@ -139,7 +147,7 @@ Cada capa de `lab/` tiene sus tests en `lab/tests/`:
 1. Si algún test la necesita, se levanta un **PostgreSQL 16 nuevo en Docker** (puerto al azar,
    solo en tu PC). Los tests que no usan base corren sin Docker.
 2. Se carga **`lab/tests/datos/base_pruebas.sql`**: el esquema actual de `levi-db-scripts`
-   (v2.0 a v2.3) con datos de prueba conocidos. Su encabezado explica qué datos trae.
+   (v2.0 a v2.4) con datos de prueba conocidos. Su encabezado explica qué datos trae.
 3. Al terminar, **el contenedor se borra** con todo lo que tenía, aunque algún test falle.
 
 Los tests usan `config/settings_test.py`: nunca leen `.env.dev`/`.env.prod` ni se
@@ -167,7 +175,7 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 |---|---|
 | `docker compose logs -f backend` | ver los mensajes del backend (Ctrl+C para salir) |
 | `docker compose down` | apagar todo (**los datos se conservan**) |
-| `docker compose exec backend python manage.py changepassword profesor` | cambiar la clave del profesor |
+| `docker compose exec backend python manage.py clave_lector CORREO` | dar o cambiar la clave de un lector |
 
 > ⚠️ `docker compose down -v` (con `-v`) **borra la base de datos**. No lo uses en el servidor.
 
@@ -185,14 +193,15 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `config/settings.py` | configuración; elige `.env.dev` o `.env.prod` y lee todo lo secreto de ahí |
 | `config/urls.py` | rutas principales: `/api/` y `/admin/` |
 | `lab/urls.py` | rutas de la API: qué controlador atiende cada dirección |
-| `lab/controladores/` | **capa controlador**: `alumnos.py`, `sesiones.py`, `estado.py` (health, login) y `errores.py` (400/404) |
-| `lab/dto/` | **capa DTO**: `alumno.py`, `sesion.py` (valida el JSON del visor y lo vuelve a armar igual) y `fechas.py` |
-| `lab/servicios/` | **capa servicio**: `alumno_servicio.py` y `sesion_servicio.py` (reglas y transacciones) |
-| `lab/dao/` | **capa DAO**: consultas SQL de `participante`, `sesion` (+ detalle) y catálogo |
-| `lab/utils/errores.py` | errores del negocio: `DatosInvalidos` (400) y `NoEncontrado` (404) |
+| `lab/controladores/` | **capa controlador**: `alumnos.py`, `sesiones.py`, `estado.py` (health, login, refresh, logout) y `errores.py` (400/401/404) |
+| `lab/dto/` | **capa DTO**: `alumno.py`, `sesion.py` (valida el JSON del visor y lo vuelve a armar igual), `lector.py` (login) y `fechas.py` |
+| `lab/servicios/` | **capa servicio**: `alumno_servicio.py`, `sesion_servicio.py` y `acceso_servicio.py` (login con la tabla lector) |
+| `lab/dao/` | **capa DAO**: consultas SQL de `participante`, `sesion` (+ detalle), `lector` y catálogo |
+| `lab/utils/errores.py` | errores del negocio: `DatosInvalidos` (400), `NoAutorizado` (401) y `NoEncontrado` (404) |
 | `lab/models.py` | modelos solo para el panel `/admin/` (`managed = False`: Django no toca esas tablas) |
 | `lab/admin.py` | panel `/admin/`: alumnos y sesiones, usando los mismos servicios |
-| `lab/utils/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
+| `lab/utils/auth.py` | reglas de acceso: token de un lector (docente o equipo) y la llave de Unity |
+| `lab/management/commands/clave_lector.py` | da o cambia la contraseña de un lector |
 | `lab/utils/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
 | `config/settings_test.py` | configuración de los tests (no lee `.env.dev`/`.env.prod`) |
 | `lab/tests/` | tests unitarios, una carpeta por capa (ver "Tests unitarios") |

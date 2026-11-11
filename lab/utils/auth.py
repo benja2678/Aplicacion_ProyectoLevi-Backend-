@@ -1,8 +1,9 @@
 """
-Reglas de acceso.
+Reglas de acceso a la API.
 
-1. Profesor (web): inicia sesión con usuario y contraseña y recibe tokens JWT.
-   Solo pueden entrar usuarios activos marcados como "staff" (la cuenta del profesor).
+1. Lectores (panel web): inician sesión con correo y contraseña de la tabla `lector`
+   y reciben tokens JWT. En cada petición se revisa que sigan habilitados en la base
+   (ver servicios/acceso_servicio.py). Pueden entrar los roles docente y equipo.
 2. Unity (Meta Quest): no inicia sesión. Envía la llave fija UNITY_API_KEY en el
    encabezado X-Api-Key, y esa llave SOLO sirve para enviar sesiones.
 """
@@ -10,13 +11,32 @@ Reglas de acceso.
 import hmac
 
 from django.conf import settings
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import BasePermission
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from ..dto.lector import ROLES_CON_ACCESO, LectorAutenticado
 
 
-def teacher_can_login(user) -> bool:
-    """Quién puede recibir un token: solo cuentas activas de tipo staff (el profesor).
-    Se usa en SIMPLE_JWT['USER_AUTHENTICATION_RULE']."""
-    return user is not None and user.is_active and user.is_staff
+class JWTLectorAuthentication(JWTAuthentication):
+    """Lee el token "Authorization: Bearer ..." y busca a su lector en la tabla `lector`
+    (en vez de en los usuarios de Django)."""
+
+    def get_user(self, validated_token):
+        from ..servicios import acceso_servicio  # aquí, para no crear un ciclo de imports
+
+        lector = acceso_servicio.lector_del_token(validated_token)
+        if lector is None:
+            raise AuthenticationFailed('Tu acceso ya no es válido. Vuelve a iniciar sesión.', code='sin_acceso')
+        return lector
+
+
+class EsLector(BasePermission):
+    """Permite la petición solo a un lector conectado con rol docente o equipo."""
+
+    def has_permission(self, request, view) -> bool:
+        usuario = request.user
+        return isinstance(usuario, LectorAutenticado) and usuario.rol in ROLES_CON_ACCESO
 
 
 class HasUnityApiKey(BasePermission):

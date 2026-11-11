@@ -1,15 +1,14 @@
 """Rutas de la API. Todas quedan bajo /api/ (ver config/urls.py)."""
 
 from django.urls import path
-from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 from .controladores import alumnos, estado, sesiones
 
 urlpatterns = [
     path('health/', estado.HealthControlador.as_view(), name='health'),
     path('auth/login/', estado.LoginControlador.as_view(), name='login'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    path('auth/logout/', TokenBlacklistView.as_view(), name='logout'),
+    path('auth/refresh/', estado.RenovarControlador.as_view(), name='token-refresh'),
+    path('auth/logout/', estado.CerrarSesionControlador.as_view(), name='logout'),
     path('auth/me/', estado.YoControlador.as_view(), name='me'),
 
     path('students/', alumnos.AlumnosControlador.as_view(), name='alumnos'),

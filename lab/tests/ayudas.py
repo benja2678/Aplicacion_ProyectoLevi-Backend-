@@ -6,6 +6,8 @@ from pathlib import Path
 from django.contrib.auth.models import User
 from django.db import connection
 
+from lab.dto.lector import LectorAutenticado
+
 DATOS = Path(__file__).resolve().parent / 'datos'
 TEST_API_KEY = 'llave-de-prueba-unity-123'
 
@@ -112,9 +114,14 @@ def sesion_real_del_visor() -> dict:
 # Otros
 
 
-def profesor_sin_base() -> User:
-    """Un usuario profesor que NO está en la base (para tests sin base de datos)."""
-    return User(id=1, username='profesor', first_name='Ana', last_name='Pérez', is_staff=True, is_active=True)
+def lector_sin_base(rol='docente') -> LectorAutenticado:
+    """Un lector conectado (docente o equipo), sin tocar la base (para tests unitarios)."""
+    return LectorAutenticado(correo='docente@ejemplo.cl', nombre='Docente de prueba', rol=rol)
+
+
+def usuario_django_sin_base() -> User:
+    """Un usuario de Django (de /admin/): NO es un lector, así que no puede usar la API."""
+    return User(id=1, username='admin', is_staff=True, is_superuser=True, is_active=True)
 
 
 def sql_uno(sql, parametros=()):

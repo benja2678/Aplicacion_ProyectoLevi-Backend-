@@ -2,14 +2,15 @@
 --  BASE DE DATOS PARA LOS TESTS DEL BACKEND
 --
 --  Es la base actual del laboratorio con datos de prueba conocidos:
---    - Esquema: levi-db-scripts v2.0 + v2.1 (catálogo) + v2.2 + v2.3.
+--    - Esquema: levi-db-scripts v2.0 + v2.1 (catálogo) + v2.2 + v2.3 + v2.4.
 --    - participante: A001 Camila Rojas y A002 Matías Soto (alumnos);
 --                    A015 (código sin alumno, con una sesión).
 --    - sesion 1: A001 · T0 · 2026-11-04T09:15:00 · importada (8 eventos)
 --      sesion 2: A001 · N1 · 2026-11-05T10:31:12 · visor     (9 eventos)
 --      sesion 3: A015 · N1 · 2026-11-10T23:07:51 · visor     (21 eventos, JSON real de un visor)
 --    - Totales: 38 eventos, 4 lecturas, 2 rechazos, 13 filas en sesion_tarea.
---    - lector: 2 correos ficticios (@ejemplo.cl), no los reales.
+--    - lector: 2 correos ficticios (@ejemplo.cl), no los reales, SIN clave
+--      (los tests que necesitan entrar le ponen una).
 --
 --  Lo carga lab/tests/runner.py en un PostgreSQL de Docker que se crea al
 --  empezar los tests y se borra al terminar. Los tests del DAO dependen de
@@ -20,7 +21,6 @@
 --  pg_dump --no-owner --no-privileges --column-inserts --no-comments
 -- =====================================================================
 
---
 --
 -- PostgreSQL database dump
 --
@@ -79,6 +79,7 @@ CREATE TABLE public.lector (
     nombre text NOT NULL,
     rol text DEFAULT 'docente'::text NOT NULL,
     creado timestamp with time zone DEFAULT now() NOT NULL,
+    clave text,
     CONSTRAINT lector_rol_check CHECK ((rol = ANY (ARRAY['docente'::text, 'equipo'::text])))
 );
 
@@ -370,8 +371,8 @@ INSERT INTO public.experimento (id, titulo) VALUES ('N1', 'Ley de Ohm en un circ
 -- Data for Name: lector; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.lector (email, nombre, rol, creado) VALUES ('docente@ejemplo.cl', 'Docente de prueba', 'docente', '2026-11-03 15:00:00+00');
-INSERT INTO public.lector (email, nombre, rol, creado) VALUES ('equipo@ejemplo.cl', 'Equipo de prueba', 'equipo', '2026-11-03 15:00:00+00');
+INSERT INTO public.lector (email, nombre, rol, creado, clave) VALUES ('docente@ejemplo.cl', 'Docente de prueba', 'docente', '2026-11-03 15:00:00+00', NULL);
+INSERT INTO public.lector (email, nombre, rol, creado, clave) VALUES ('equipo@ejemplo.cl', 'Equipo de prueba', 'equipo', '2026-11-03 15:00:00+00', NULL);
 
 
 --

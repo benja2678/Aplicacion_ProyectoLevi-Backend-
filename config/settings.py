@@ -222,10 +222,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
 # API (Django REST Framework) y tokens JWT
 
 REST_FRAMEWORK = {
-    # Por defecto, TODA la API exige un token JWT de un usuario "staff" (el profesor).
-    # Las únicas excepciones (login y envío de Unity) lo indican en su vista.
-    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication'],
-    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAdminUser'],
+    # Por defecto, TODA la API exige el token JWT de un lector (tabla `lector` de la
+    # base: docente o equipo). Las excepciones (health, login, refresh, logout y el
+    # envío de Unity) lo indican en su controlador. Ver lab/utils/auth.py.
+    'DEFAULT_AUTHENTICATION_CLASSES': ['lab.utils.auth.JWTLectorAuthentication'],
+    'DEFAULT_PERMISSION_CLASSES': ['lab.utils.auth.EsLector'],
     'DEFAULT_RENDERER_CLASSES': ['lab.utils.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
     # Los errores del negocio (lab/utils/errores.py) se responden como 400 / 404.
@@ -241,10 +242,9 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=env_int('JWT_ACCESS_MINUTES', 30)),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=env_int('JWT_REFRESH_HOURS', 8)),
     'ROTATE_REFRESH_TOKENS': False,
-    'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
-    # Solo cuentas activas de tipo staff (el profesor) reciben tokens.
-    'USER_AUTHENTICATION_RULE': 'lab.utils.auth.teacher_can_login',
+    # Los tokens los crea lab/servicios/acceso_servicio.py con el correo del lector;
+    # no se usan los usuarios de Django (esos quedan solo para el panel /admin/).
 }
 
 

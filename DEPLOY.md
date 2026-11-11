@@ -124,28 +124,37 @@ Al final muestra el estado de los contenedores. Los 3 deben decir `Up`, y `db` a
 
 1. En el navegador de tu PC abre `http://IP-DEL-SERVIDOR/` (o `http://IP-DEL-SERVIDOR:8080/`
    si cambiaste el puerto). Debe aparecer la pantalla de login.
-2. Crea la cuenta del profesor (paso 7) y entra con ella.
+2. Dale clave al profesor (paso 7) y entra con su correo.
 3. En el servidor, `curl http://localhost/api/health/` debe responder `{"status":"ok"}`.
    (Si usas otro puerto: `curl http://localhost:8080/api/health/`.)
 
-## 7. La cuenta del profesor
+## 7. Quién puede entrar a la página (tabla `lector`)
 
-No se crea sola: se crea **a mano, una sola vez**, después de encender el sistema.
-Desde `~/laboratorio/proyecto-backend/deploy`:
-
-```sh
-docker compose exec backend python manage.py createsuperuser
-```
-
-Pregunta el usuario (por ejemplo `profesor`), un correo (se puede dejar vacío) y la
-clave dos veces (no se ve al escribirla). La clave debe tener mínimo 10 caracteres y no
-ser solo números ni una clave común. La cuenta queda guardada en la base de datos.
-
-Otros comandos útiles (desde la misma carpeta):
+El acceso se controla en la base de datos, tabla **`lector`** (levi-db-scripts v2.4):
+entra quien esté ahí, con rol `docente` o `equipo`, y tenga clave. Los correos los carga
+`Version_2.1.0/insert_datosbase.sql`; las claves se ponen así, desde
+`~/laboratorio/proyecto-backend/deploy`:
 
 ```sh
-docker compose exec backend python manage.py changepassword profesor   # cambiar la clave
+docker compose exec backend python manage.py clave_lector CORREO-DEL-PROFESOR
 ```
+
+Pide la contraseña dos veces (no se ve al escribirla): mínimo 10 caracteres, que no sea
+solo números ni una clave común. Se guarda **cifrada**. El mismo comando sirve para
+cambiarla. Para agregar a alguien que no está en la tabla:
+
+```sh
+docker compose exec backend python manage.py clave_lector nuevo@uta.cl --nombre "Nombre Apellido" --rol equipo
+```
+
+**Quitar el acceso** (efecto inmediato, aunque la persona tenga la página abierta):
+
+```sql
+update lector set clave = null where email = 'correo@uta.cl';   -- o: delete from lector where ...
+```
+
+El panel `/admin/` de Django usa sus propias cuentas (no las de `lector`). Si lo necesitas:
+`docker compose exec backend python manage.py createsuperuser`.
 
 ## 8. Ver lo que pasa (logs)
 

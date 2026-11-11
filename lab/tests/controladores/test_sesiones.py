@@ -10,7 +10,7 @@ from rest_framework.test import APISimpleTestCase
 from lab.dto.sesion import ResultadoImportacionDTO, SesionGuardadaDTO, SesionInvalida, SesionLogDTO
 from lab.utils.errores import DatosInvalidos, NoEncontrado
 
-from ..ayudas import TEST_API_KEY, profesor_sin_base, session_log
+from ..ayudas import TEST_API_KEY, lector_sin_base, session_log
 
 INGEST = '/api/sessions/ingest/'
 
@@ -19,7 +19,7 @@ class SesionesControladorTests(APISimpleTestCase):
     def setUp(self):
         self.servicio = mock.patch('lab.controladores.sesiones.sesion_servicio').start()
         self.addCleanup(mock.patch.stopall)
-        self.client.force_authenticate(user=profesor_sin_base())
+        self.client.force_authenticate(user=lector_sin_base())
 
     def test_listar_con_la_forma_del_frontend(self):
         log = session_log()
@@ -102,7 +102,7 @@ class RecibirSesionControladorTests(APISimpleTestCase):
         self.servicio.recibir_del_visor.assert_not_called()
 
     def test_el_token_del_profesor_no_reemplaza_la_llave(self):
-        self.client.force_authenticate(user=profesor_sin_base())
+        self.client.force_authenticate(user=lector_sin_base())
         self.assertEqual(self.enviar(llave=None).status_code, 403)
 
     def test_la_llave_solo_sirve_para_enviar(self):

@@ -1,23 +1,43 @@
 """Tests unitarios de lab/utils/auth.py (sin base de datos)."""
 
+from unittest import mock
+
+from django.contrib.auth.models import AnonymousUser
 from django.test import SimpleTestCase, override_settings
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory
+from rest_framework_simplejwt.tokens import AccessToken
 
-from lab.utils.auth import HasUnityApiKey, teacher_can_login
+from lab.utils.auth import EsLector, HasUnityApiKey, JWTLectorAuthentication
 
-from ..ayudas import profesor_sin_base
+from ..ayudas import lector_sin_base, usuario_django_sin_base
 
 
-class TeacherCanLoginTests(SimpleTestCase):
-    def test_solo_cuentas_activas_de_profesor(self):
-        profesor = profesor_sin_base()
-        self.assertTrue(teacher_can_login(profesor))
-        profesor.is_active = False
-        self.assertFalse(teacher_can_login(profesor))
-        otro = profesor_sin_base()
-        otro.is_staff = False
-        self.assertFalse(teacher_can_login(otro))
-        self.assertFalse(teacher_can_login(None))
+class EsLectorTests(SimpleTestCase):
+    def permite(self, usuario):
+        return EsLector().has_permission(mock.Mock(user=usuario), view=None)
+
+    def test_docente_y_equipo(self):
+        self.assertTrue(self.permite(lector_sin_base('docente')))
+        self.assertTrue(self.permite(lector_sin_base('equipo')))
+
+    def test_nadie_mas(self):
+        self.assertFalse(self.permite(lector_sin_base('otro')))
+        self.assertFalse(self.permite(usuario_django_sin_base()))  # la cuenta de /admin/ no sirve
+        self.assertFalse(self.permite(AnonymousUser()))
+
+
+class JWTLectorAuthenticationTests(SimpleTestCase):
+    def test_devuelve_el_lector_del_token(self):
+        token = AccessToken()
+        with mock.patch('lab.servicios.acceso_servicio.lector_del_token', return_value=lector_sin_base()) as buscar:
+            self.assertEqual(JWTLectorAuthentication().get_user(token), lector_sin_base())
+        buscar.assert_called_once_with(token)
+
+    def test_lector_sin_acceso(self):
+        with mock.patch('lab.servicios.acceso_servicio.lector_del_token', return_value=None):
+            with self.assertRaises(AuthenticationFailed):
+                JWTLectorAuthentication().get_user(AccessToken())
 
 
 @override_settings(UNITY_API_KEY='llave-correcta')
