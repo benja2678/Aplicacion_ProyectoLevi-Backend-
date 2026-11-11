@@ -75,36 +75,6 @@ def session_log(code='A001', experiment='N1', started='2026-11-05T10:31:12', **e
     return log
 
 
-def session_log_t0(code='A001', started='2026-11-04T09:15:00'):
-    """Una sesión del tutorial T0 (una sola medición, V_R1)."""
-    return {
-        'participantCode': code,
-        'experimentId': 'T0',
-        'experimentTitle': TITULOS['T0'],
-        'appVersion': '0.9-feria',
-        'device': 'Meta Quest 3S',
-        'startedAt': started,
-        'finishedAt': '2026-11-04T09:15:35',
-        'completed': True,
-        'durationSeconds': 35.0,
-        'laboratorySeconds': 15.0,
-        'correctCount': 1,
-        'taskCount': 1,
-        'events': [
-            evento(0.0, 'etapa', detail='Briefing'),
-            evento(3.2, 'tutorial', task='comenzar', detail='cumplido'),
-            evento(8.75, 'tutorial', task='tomar', detail='cumplido'),
-            evento(15.1, 'tutorial', task='selector', detail='cumplido'),
-            evento(20.0, 'etapa', detail='Laboratory'),
-            evento(24.5, 'rechazo', task='V_R1', detail='MeterOff', selector='OFF', jack='VoltOhmMilliamp'),
-            evento(30.25, 'lectura', task='V_R1', measured=2.5, expected=2.4876, verdict='Correct', attempt=1,
-                   selector='20 V', jack='VoltOhmMilliamp'),
-            evento(35.0, 'etapa', detail='Results'),
-        ],
-        'tasks': [tarea('V_R1', 'Correct', attempts=1, rejected=1, first_correct=1, first_reading=30.25, first_ok=30.25)],
-    }
-
-
 def sesion_real_del_visor() -> dict:
     """El JSON que envió un visor de verdad (A015, experimento N1)."""
     return json.loads((DATOS / 'A015_N1_20261110_230751.json').read_text(encoding='utf-8'))

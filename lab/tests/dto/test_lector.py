@@ -39,5 +39,4 @@ class LectorAutenticadoTests(SimpleTestCase):
         lector = LectorAutenticado(correo='docente@uta.cl', nombre='Docente', rol='docente')
         self.assertTrue(lector.is_authenticated)
         self.assertFalse(lector.is_anonymous)
-        self.assertEqual(lector.pk, 'docente@uta.cl')
         self.assertEqual(lector.a_json(), {'username': 'docente@uta.cl', 'nombre': 'Docente', 'rol': 'docente'})

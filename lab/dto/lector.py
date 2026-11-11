@@ -69,11 +69,6 @@ class LectorAutenticado:
 
     is_authenticated = True
     is_anonymous = False
-    is_active = True
-
-    @property
-    def pk(self) -> str:
-        return self.correo
 
     def a_json(self) -> dict:
         # "username" es el nombre que espera el panel (src/data/AuthContext.tsx).
