@@ -10,11 +10,11 @@ Estado del backend y sesión del lector (docente o equipo).
 
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from ..dto.lector import CredencialesDTO
 from ..servicios import acceso_servicio
+from ..utils.limite_login import LimiteLogin
 
 
 class PublicoControlador(APIView):
@@ -36,8 +36,7 @@ class HealthControlador(PublicoControlador):
 class LoginControlador(PublicoControlador):
     """Limita los intentos por IP (LOGIN_RATE, por defecto 5 por minuto)."""
 
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'login'
+    throttle_classes = [LimiteLogin]
 
     def post(self, request):
         return Response(acceso_servicio.iniciar_sesion(CredencialesDTO.desde_json(request.data)))

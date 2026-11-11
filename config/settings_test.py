@@ -21,9 +21,5 @@ UNITY_API_KEY = 'llave-de-prueba-unity-123'
 # Guardar contraseñas con el método rápido: los tests corren varias veces más rápido.
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 
-# Sin archivos estáticos: los tests no usan collectstatic ni WhiteNoise.
-STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}  # noqa: F405
-MIDDLEWARE = [m for m in MIDDLEWARE if 'whitenoise' not in m]  # noqa: F405
-
 # Los tests provocan a propósito respuestas 400/401/403/404: no se muestran como avisos.
 LOGGING['loggers']['django.request'] = {'handlers': ['console'], 'level': 'ERROR', 'propagate': False}  # noqa: F405

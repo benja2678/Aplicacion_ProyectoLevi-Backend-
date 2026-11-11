@@ -1,13 +1,14 @@
-"""Tests de lab/servicios/acceso_servicio.py.
+"""Tests unitarios de lab/servicios/acceso_servicio.py.
 
-El DAO de lectores se simula (mock). Se usa TestCase (base de prueba en Docker) solo
-porque cerrar sesión guarda el token en la lista negra de simplejwt, que es una tabla.
+Los DAO (lector, token, intento_login) se simulan con mocks: sin base de datos.
 """
 
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth.hashers import make_password
-from django.test import TestCase
+from django.test import SimpleTestCase, override_settings
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from lab.dto.lector import CredencialesDTO, LectorAutenticado
@@ -15,11 +16,14 @@ from lab.servicios import acceso_servicio
 from lab.utils.errores import DatosInvalidos, NoAutorizado
 
 CLAVE = 'Clave-Del-Docente-2026'
+MODULO = 'lab.servicios.acceso_servicio'
 
 
-class BaseAccesoTest(TestCase):
+class BaseAccesoTest(SimpleTestCase):
     def setUp(self):
-        self.dao = mock.patch('lab.servicios.acceso_servicio.lector_dao').start()
+        self.dao = mock.patch(f'{MODULO}.lector_dao').start()
+        self.tokens = mock.patch(f'{MODULO}.token_dao').start()
+        self.intentos = mock.patch(f'{MODULO}.intento_login_dao').start()
         self.addCleanup(mock.patch.stopall)
         self.lectores = {
             'docente@uta.cl': {'email': 'docente@uta.cl', 'nombre': 'Docente', 'rol': 'docente',
@@ -27,6 +31,10 @@ class BaseAccesoTest(TestCase):
             'sinclave@uta.cl': {'email': 'sinclave@uta.cl', 'nombre': 'Sin clave', 'rol': 'equipo', 'clave': None},
         }
         self.dao.obtener.side_effect = lambda correo: self.lectores.get(correo.lower())
+        # Tabla token_revocado simulada.
+        self.revocados = set()
+        self.tokens.revocar.side_effect = lambda jti, expira: self.revocados.add(jti)
+        self.tokens.esta_revocado.side_effect = lambda jti: jti in self.revocados
 
     def entrar(self, correo='docente@uta.cl', clave=CLAVE):
         return acceso_servicio.iniciar_sesion(CredencialesDTO(correo=correo, clave=clave))
@@ -68,8 +76,7 @@ class TokensTests(BaseAccesoTest):
         self.assertIsNone(acceso_servicio.lector_del_token(AccessToken()))
 
     def test_renovar(self):
-        refresh = self.entrar()['refresh']
-        nuevo = acceso_servicio.renovar(refresh)
+        nuevo = acceso_servicio.renovar(self.entrar()['refresh'])
         self.assertEqual(AccessToken(nuevo['access'])['lector'], 'docente@uta.cl')
 
     def test_renovar_sin_acceso_o_con_token_malo(self):
@@ -84,13 +91,41 @@ class TokensTests(BaseAccesoTest):
         with self.assertRaises(NoAutorizado):
             acceso_servicio.renovar(refresh)
 
-    def test_cerrar_sesion_invalida_el_refresh(self):
+    def test_cerrar_sesion_revoca_el_refresh(self):
         refresh = self.entrar()['refresh']
         acceso_servicio.cerrar_sesion(refresh)
+        jti, expira = self.tokens.revocar.call_args.args
+        self.assertEqual(jti, RefreshToken(refresh)['jti'])
+        self.assertGreater(expira, timezone.now())  # se guarda hasta que el token vence
         with self.assertRaises(NoAutorizado):
             acceso_servicio.renovar(refresh)
         with self.assertRaises(NoAutorizado):
+            acceso_servicio.cerrar_sesion(refresh)  # ya estaba cerrada
+        with self.assertRaises(NoAutorizado):
             acceso_servicio.cerrar_sesion('esto-no-es-un-token')
+
+
+@override_settings(LOGIN_RATE='3/min')
+class LimiteDeIntentosTests(BaseAccesoTest):
+    def test_permite_y_anota_mientras_no_se_pase(self):
+        self.intentos.momentos_recientes.return_value = [timezone.now()] * 2
+        self.assertIsNone(acceso_servicio.registrar_intento_login('1.2.3.4'))
+        self.intentos.momentos_recientes.assert_called_once_with('1.2.3.4', 60)
+        self.intentos.registrar.assert_called_once_with('1.2.3.4')
+        self.intentos.borrar_viejos.assert_called_once_with(60)
+
+    def test_bloquea_y_dice_cuanto_esperar(self):
+        ahora = timezone.now()
+        self.intentos.momentos_recientes.return_value = [ahora - timedelta(seconds=s) for s in (50, 20, 10)]
+        espera = acceso_servicio.registrar_intento_login('1.2.3.4')
+        self.assertIn(espera, (10, 11))  # el más antiguo (hace 50 s) sale del minuto en ~10 s
+        self.intentos.registrar.assert_not_called()
+
+    @override_settings(LOGIN_RATE='20/h')
+    def test_otros_periodos(self):
+        self.intentos.momentos_recientes.return_value = []
+        acceso_servicio.registrar_intento_login('1.2.3.4')
+        self.intentos.momentos_recientes.assert_called_once_with('1.2.3.4', 3600)
 
 
 class AsignarClaveTests(BaseAccesoTest):

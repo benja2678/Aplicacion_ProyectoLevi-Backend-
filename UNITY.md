@@ -34,7 +34,7 @@ Invoke-RestMethod -Method Post -Uri http://IP-DEL-SERVIDOR/api/sessions/ingest/ 
 
 Debe responder `Sesión guardada.` (o un error **409 Conflict** si ya la habías enviado:
 también está bien). Si esto funciona, el servidor está listo para los visores.
-Después puedes borrar esa sesión de prueba desde el panel `/admin/` (Sesiones).
+Después puedes borrar esa sesión de prueba desde la ficha del alumno A015 en la página (botón "Eliminar sesión").
 
 ## 3. Configurar el asset `EnvioSesiones`
 

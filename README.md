@@ -33,7 +33,9 @@ PostgreSQL       tablas de levi-db-scripts
 
 Las tablas del laboratorio (`participante`, `sesion`, `evento`, `lectura`, `rechazo`,
 `sesion_tarea`, `experimento`, `tarea`…) **las crean los scripts de `levi-db-scripts`,
-no Django**. Django solo crea las suyas: usuarios, tokens invalidados y la caché del login.
+no Django**. El backend **no crea ninguna tabla** (no se usa `migrate`): solo se conecta.
+También son de los scripts las de la sesión web: `lector` (quién entra), `token_revocado`
+(sesiones cerradas) e `intento_login` (límite de intentos).
 
 ## Cómo se protege el acceso
 
@@ -51,7 +53,6 @@ no Django**. Django solo crea las suyas: usuarios, tokens invalidados y la cach�
   en cada petición, así que el efecto es **inmediato**.
 - No existe registro público. El login permite 5 intentos por minuto por IP (luego 429).
 - Al cerrar sesión, el token de renovación queda invalidado.
-- Las cuentas de Django (`createsuperuser`) sirven **solo** para el panel `/admin/`, no para la página.
 
 ## Endpoints (todos bajo `/api/`)
 
@@ -95,7 +96,7 @@ Remove-Item Env:ENTORNO                                           # vuelve a dev
 La base de datos de cada entorno debe tener los scripts de `levi-db-scripts` aplicados,
 en orden: `Version_2.0.0/levidb.sql`, `Version_2.1.0/insert_datosbase.sql`,
 `Version_2.2.0/alter_nombre_asign.sql`, `Version_2.3.0/alter_datos_visor.sql` y
-`Version_2.4.0/alter_lector_clave.sql`.
+`Version_2.4.0/alter_lector_clave.sql` y `Version_2.5.0/alter_sesion_web.sql`.
 
 ## Usar en tu PC (sin Docker)
 
@@ -105,9 +106,8 @@ En PowerShell, dentro de la carpeta `proyecto-backend`:
 py -m venv .venv                                   # 1. crea el entorno de Python (una vez)
 .venv\Scripts\python -m pip install -r requirements.txt   # 2. instala las librerías
 copy .env.dev.example .env.dev                     # 3. crea tu .env.dev y complétalo
-.venv\Scripts\python manage.py migrate             # 4. crea las tablas de Django (usuarios, tokens)
-.venv\Scripts\python manage.py clave_lector TU@CORREO  # 5. clave para entrar a la página (el correo debe estar en la tabla lector)
-.venv\Scripts\python manage.py runserver           # 6. arranca en http://localhost:8000
+.venv\Scripts\python manage.py clave_lector TU@CORREO  # 4. clave para entrar a la página (el correo debe estar en la tabla lector)
+.venv\Scripts\python manage.py runserver           # 5. arranca en http://localhost:8000
 ```
 
 > Se usa `.venv\Scripts\python` directamente para no tener que "activar" el entorno
@@ -118,10 +118,7 @@ Otros comandos útiles:
 ```powershell
 .venv\Scripts\python manage.py test lab                 # tests unitarios (ver abajo)
 .venv\Scripts\python manage.py clave_lector TU@CORREO     # cambiar la contraseña de un lector
-.venv\Scripts\python manage.py createsuperuser             # cuenta SOLO para el panel /admin/
 ```
-
-Panel de Django: http://localhost:8000/admin/ (con una cuenta de `createsuperuser`).
 
 ## Tests unitarios
 
@@ -137,17 +134,17 @@ Cada capa de `lab/` tiene sus tests en `lab/tests/`:
 |---|---|---|
 | `dto/` | validación del JSON y forma de las respuestas | no |
 | `servicios/` | reglas del negocio (el DAO se simula con *mocks*) | no |
-| `controladores/` | rutas, permisos, códigos HTTP y forma del JSON (el servicio se simula) | solo el login |
+| `controladores/` | rutas, permisos, códigos HTTP y forma del JSON (el servicio se simula) | no |
 | `dao/` | las consultas SQL, contra un PostgreSQL de verdad | **sí** |
 | `utils/` | `auth.py`, `errores.py` y `renderers.py` | no |
-| `test_admin.py`, `test_comandos.py` | el panel `/admin/` y el comando `wait_for_db` | no |
+| `test_comandos.py` | los comandos `wait_for_db` y `clave_lector` | no |
 
 **La base de prueba** (la arma `lab/tests/runner.py`):
 
 1. Si algún test la necesita, se levanta un **PostgreSQL 16 nuevo en Docker** (puerto al azar,
    solo en tu PC). Los tests que no usan base corren sin Docker.
 2. Se carga **`lab/tests/datos/base_pruebas.sql`**: el esquema actual de `levi-db-scripts`
-   (v2.0 a v2.4) con datos de prueba conocidos. Su encabezado explica qué datos trae.
+   (v2.0 a v2.5) con datos de prueba conocidos. Su encabezado explica qué datos trae.
 3. Al terminar, **el contenedor se borra** con todo lo que tenía, aunque algún test falle.
 
 Los tests usan `config/settings_test.py`: nunca leen `.env.dev`/`.env.prod` ni se
@@ -191,15 +188,13 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | Archivo | Para qué sirve |
 |---|---|
 | `config/settings.py` | configuración; elige `.env.dev` o `.env.prod` y lee todo lo secreto de ahí |
-| `config/urls.py` | rutas principales: `/api/` y `/admin/` |
+| `config/urls.py` | ruta principal: todo bajo `/api/` |
 | `lab/urls.py` | rutas de la API: qué controlador atiende cada dirección |
 | `lab/controladores/` | **capa controlador**: `alumnos.py`, `sesiones.py`, `estado.py` (health, login, refresh, logout) y `errores.py` (400/401/404) |
 | `lab/dto/` | **capa DTO**: `alumno.py`, `sesion.py` (valida el JSON del visor y lo vuelve a armar igual), `lector.py` (login) y `fechas.py` |
 | `lab/servicios/` | **capa servicio**: `alumno_servicio.py`, `sesion_servicio.py` y `acceso_servicio.py` (login con la tabla lector) |
 | `lab/dao/` | **capa DAO**: consultas SQL de `participante`, `sesion` (+ detalle), `lector` y catálogo |
 | `lab/utils/errores.py` | errores del negocio: `DatosInvalidos` (400), `NoAutorizado` (401) y `NoEncontrado` (404) |
-| `lab/models.py` | modelos solo para el panel `/admin/` (`managed = False`: Django no toca esas tablas) |
-| `lab/admin.py` | panel `/admin/`: alumnos y sesiones, usando los mismos servicios |
 | `lab/utils/auth.py` | reglas de acceso: token de un lector (docente o equipo) y la llave de Unity |
 | `lab/management/commands/clave_lector.py` | da o cambia la contraseña de un lector |
 | `lab/utils/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |

@@ -152,10 +152,6 @@ def buscar(codigo: str, experimento_id: str, inicio: datetime) -> dict | None:
     )
 
 
-def obtener(sesion_id: int) -> dict | None:
-    return consultar_uno('select id, participante_id from sesion where id = %s', [sesion_id])
-
-
 # ------------------------------------------------------------------ #
 # Borrar
 

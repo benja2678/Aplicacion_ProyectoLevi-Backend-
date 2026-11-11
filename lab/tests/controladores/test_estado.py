@@ -1,13 +1,10 @@
-"""Tests de lab/controladores/estado.py (health, login, refresh, logout, me).
-
-El servicio de acceso se simula (mock). Solo el límite de intentos usa la base de
-prueba en Docker, porque el contador se guarda en la caché de la base.
+"""Tests unitarios de lab/controladores/estado.py (health, login, refresh, logout, me).
+El servicio de acceso se simula (mock): sin base de datos.
 """
 
 from unittest import mock
 
-from django.core.cache import cache
-from rest_framework.test import APISimpleTestCase, APITestCase
+from rest_framework.test import APISimpleTestCase
 
 from lab.dto.lector import CredencialesDTO
 from lab.utils.errores import NoAutorizado
@@ -88,12 +85,13 @@ class SesionTests(APISimpleTestCase):
         self.servicio.cerrar_sesion.assert_called_once_with('rrr')
 
 
-class LimiteDeIntentosTests(APITestCase):
+class LimiteDeIntentosTests(APISimpleTestCase):
     def setUp(self):
-        cache.clear()
         servicio = mock.patch(SERVICIO).start()
         self.addCleanup(mock.patch.stopall)
         servicio.iniciar_sesion.side_effect = NoAutorizado('Correo o contraseña incorrectos.')
+        # 5 intentos permitidos; el sexto, bloqueado por 42 segundos.
+        mock.patch('lab.servicios.acceso_servicio.registrar_intento_login', side_effect=[None] * 5 + [42]).start()
 
     def test_sexto_intento_del_minuto_bloqueado(self):
         for _ in range(5):
@@ -101,3 +99,4 @@ class LimiteDeIntentosTests(APITestCase):
             self.assertEqual(r.status_code, 401)
         r = self.client.post('/api/auth/login/', {'email': 'a@b.cl', 'password': 'mal'}, format='json')
         self.assertEqual(r.status_code, 429)
+        self.assertEqual(r['Retry-After'], '42')

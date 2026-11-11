@@ -1,13 +1,13 @@
 """
 Ejecutor de los tests (lo activa config/settings_test.py).
 
-- Los tests que NO usan base de datos (DTO, servicios, controladores, admin…) corren
+- Los tests que NO usan base de datos (DTO, servicios, controladores, utils…) corren
   solos: no se levanta nada.
-- Si algún test usa la base (DAO, login), el ejecutor:
+- Si algún test usa la base (los del DAO), el ejecutor:
     1. levanta un PostgreSQL 16 NUEVO en Docker (solo en 127.0.0.1, puerto al azar,
        usuario y clave al azar);
-    2. Django crea ahí la base de prueba y sus propias tablas (usuarios, tokens…);
-    3. carga lab/tests/datos/base_pruebas.sql (tablas del laboratorio + datos de prueba);
+    2. Django crea ahí la base de prueba;
+    3. carga lab/tests/datos/base_pruebas.sql (todas las tablas + datos de prueba);
     4. corren los tests;
     5. borra el contenedor con todo lo que tenía, aunque algún test falle.
 

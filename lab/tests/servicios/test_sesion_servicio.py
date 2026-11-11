@@ -218,11 +218,3 @@ class EliminarTests(BaseServicioTest):
                 sesion_servicio.eliminar(id_sesion)
         self.sesiones.borrar.assert_not_called()
 
-    def test_por_numero_interno(self):
-        self.sesiones.obtener.return_value = {'id': 3, 'participante_id': 'A015'}
-        sesion_servicio.eliminar_por_numero(3)
-        self.sesiones.borrar.assert_called_once_with(3)
-        self.participantes.borrar_si_sobra.assert_called_once_with('A015')
-        self.sesiones.obtener.return_value = None
-        with self.assertRaises(NoEncontrado):
-            sesion_servicio.eliminar_por_numero(99)

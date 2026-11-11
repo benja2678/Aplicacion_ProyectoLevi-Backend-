@@ -55,11 +55,9 @@ class LeerTests(TestCase):
         self.assertIsNone(tareas[1]['primera_lectura_s'])
         self.assertEqual(len(sesion_dao.listar_tareas()), 13)
 
-    def test_buscar_y_obtener(self):
+    def test_buscar(self):
         self.assertEqual(sesion_dao.buscar('A001', 'N1', INICIO_N1), {'id': 2, 'participante_id': 'A001'})
         self.assertIsNone(sesion_dao.buscar('A001', 'N1', datetime(2026, 1, 1)))
-        self.assertEqual(sesion_dao.obtener(3), {'id': 3, 'participante_id': 'A015'})
-        self.assertIsNone(sesion_dao.obtener(99))
 
 
 class GuardarYBorrarTests(TestCase):

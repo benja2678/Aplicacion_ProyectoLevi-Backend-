@@ -7,16 +7,22 @@ Acceso al panel web, controlado por la tabla `lector` de la base del servidor.
 - Al entrar se entregan dos tokens JWT (access 30 min, refresh 8 h) que llevan el
   correo del lector. En CADA petición se vuelve a revisar la tabla: si se borra al
   lector o se deja su clave en NULL, pierde el acceso de inmediato.
-- Cerrar sesión invalida el token refresh (lista negra de simplejwt).
+- Cerrar sesión revoca el token refresh (tabla token_revocado).
+- El login tiene un límite de intentos por IP (tabla intento_login, LOGIN_RATE).
 """
 
+import math
+from datetime import UTC, datetime
+
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
-from ..dao import lector_dao
+from ..dao import intento_login_dao, lector_dao, token_dao
 from ..dto.lector import ROLES_CON_ACCESO, CredencialesDTO, LectorAutenticado, LectorDTO, normalizar_correo
 from ..utils.errores import DatosInvalidos, NoAutorizado
 
@@ -60,8 +66,9 @@ def renovar(refresh_texto) -> dict:
 
 
 def cerrar_sesion(refresh_texto) -> None:
-    """Invalida el refresh: ya no sirve para pedir tokens nuevos."""
-    _leer_refresh(refresh_texto).blacklist()
+    """Revoca el refresh: ya no sirve para pedir tokens nuevos."""
+    refresh = _leer_refresh(refresh_texto)
+    token_dao.revocar(refresh['jti'], datetime.fromtimestamp(refresh['exp'], tz=UTC))
 
 
 def lector_del_token(token: Token) -> LectorAutenticado | None:
@@ -73,9 +80,12 @@ def _leer_refresh(texto) -> RefreshToken:
     if not isinstance(texto, str) or not texto:
         raise DatosInvalidos(campos={'refresh': ['Falta el token "refresh".']})
     try:
-        return RefreshToken(texto)  # revisa firma, vencimiento y lista negra
+        refresh = RefreshToken(texto)  # revisa firma, tipo y vencimiento
     except TokenError:
         raise NoAutorizado(SESION_NO_VALIDA) from None
+    if token_dao.esta_revocado(refresh['jti']):  # se cerró esa sesión
+        raise NoAutorizado(SESION_NO_VALIDA)
+    return refresh
 
 
 def _lector_habilitado(correo) -> LectorAutenticado | None:
@@ -85,6 +95,33 @@ def _lector_habilitado(correo) -> LectorAutenticado | None:
     if lector is None or not lector.puede_entrar:
         return None
     return LectorAutenticado(correo=lector.correo, nombre=lector.nombre, rol=lector.rol)
+
+
+# ------------------------------------------------------------------ #
+# Límite de intentos de login
+
+
+_UNIDADES = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
+
+
+def _limite_login() -> tuple[int, int]:
+    """LOGIN_RATE "5/min" -> (5 intentos, 60 segundos)."""
+    cantidad, periodo = settings.LOGIN_RATE.split('/')
+    return int(cantidad), _UNIDADES[periodo.strip()[0]]
+
+
+def registrar_intento_login(ip: str) -> int | None:
+    """Anota un intento de login de esa IP. Devuelve None si puede intentar, o cuántos
+    segundos debe esperar si ya usó todos los intentos del período."""
+    limite, ventana = _limite_login()
+    recientes = intento_login_dao.momentos_recientes(ip, ventana)
+    if len(recientes) >= limite:
+        # Puede volver a intentar cuando el más antiguo de los últimos `limite` salga del período.
+        libera = recientes[-limite]
+        return max(1, math.ceil(ventana - (timezone.now() - libera).total_seconds()))
+    intento_login_dao.registrar(ip)
+    intento_login_dao.borrar_viejos(ventana)
+    return None
 
 
 # ------------------------------------------------------------------ #

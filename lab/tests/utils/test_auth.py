@@ -23,7 +23,7 @@ class EsLectorTests(SimpleTestCase):
 
     def test_nadie_mas(self):
         self.assertFalse(self.permite(lector_sin_base('otro')))
-        self.assertFalse(self.permite(usuario_django_sin_base()))  # la cuenta de /admin/ no sirve
+        self.assertFalse(self.permite(usuario_django_sin_base()))  # un usuario de Django no sirve
         self.assertFalse(self.permite(AnonymousUser()))
 
 

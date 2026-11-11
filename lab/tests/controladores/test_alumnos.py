@@ -80,6 +80,6 @@ class AlumnosControladorTests(APISimpleTestCase):
     def test_sin_profesor_no_se_puede_entrar(self):
         self.client = self.client_class()  # cliente nuevo, sin usuario
         self.assertEqual(self.client.get('/api/students/').status_code, 401)
-        self.client.force_authenticate(user=usuario_django_sin_base())  # cuenta de /admin/, no lector
+        self.client.force_authenticate(user=usuario_django_sin_base())  # usuario de Django, no lector
         self.assertEqual(self.client.get('/api/students/').status_code, 403)
         self.servicio.listar.assert_not_called()

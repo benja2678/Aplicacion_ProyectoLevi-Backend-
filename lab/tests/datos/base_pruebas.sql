@@ -2,7 +2,7 @@
 --  BASE DE DATOS PARA LOS TESTS DEL BACKEND
 --
 --  Es la base actual del laboratorio con datos de prueba conocidos:
---    - Esquema: levi-db-scripts v2.0 + v2.1 (catálogo) + v2.2 + v2.3 + v2.4.
+--    - Esquema: levi-db-scripts v2.0 + v2.1 (catálogo) + v2.2 + v2.3 + v2.4 + v2.5.
 --    - participante: A001 Camila Rojas y A002 Matías Soto (alumnos);
 --                    A015 (código sin alumno, con una sesión).
 --    - sesion 1: A001 · T0 · 2026-11-04T09:15:00 · importada (8 eventos)
@@ -11,6 +11,7 @@
 --    - Totales: 38 eventos, 4 lecturas, 2 rechazos, 13 filas en sesion_tarea.
 --    - lector: 2 correos ficticios (@ejemplo.cl), no los reales, SIN clave
 --      (los tests que necesitan entrar le ponen una).
+--    - token_revocado e intento_login: vacías.
 --
 --  Lo carga lab/tests/runner.py en un PostgreSQL de Docker que se crea al
 --  empezar los tests y se borra al terminar. Los tests del DAO dependen de
@@ -67,6 +68,31 @@ CREATE TABLE public.evento (
 CREATE TABLE public.experimento (
     id text NOT NULL,
     titulo text NOT NULL
+);
+
+
+--
+-- Name: intento_login; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.intento_login (
+    id bigint NOT NULL,
+    ip text NOT NULL,
+    momento timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: intento_login_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.intento_login ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.intento_login_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
 
 
@@ -206,6 +232,16 @@ ALTER TABLE public.tarea ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     NO MINVALUE
     NO MAXVALUE
     CACHE 1
+);
+
+
+--
+-- Name: token_revocado; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.token_revocado (
+    jti text NOT NULL,
+    expira timestamp with time zone NOT NULL
 );
 
 
@@ -368,6 +404,12 @@ INSERT INTO public.experimento (id, titulo) VALUES ('N1', 'Ley de Ohm en un circ
 
 
 --
+-- Data for Name: intento_login; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: lector; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -450,6 +492,19 @@ INSERT INTO public.tarea (id, experimento_id, codigo, magnitud, orden) OVERRIDIN
 
 
 --
+-- Data for Name: token_revocado; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Name: intento_login_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.intento_login_id_seq', 1, false);
+
+
+--
 -- Name: sesion_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
@@ -477,6 +532,14 @@ ALTER TABLE ONLY public.evento
 
 ALTER TABLE ONLY public.experimento
     ADD CONSTRAINT experimento_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: intento_login intento_login_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.intento_login
+    ADD CONSTRAINT intento_login_pkey PRIMARY KEY (id);
 
 
 --
@@ -552,10 +615,25 @@ ALTER TABLE ONLY public.tarea
 
 
 --
+-- Name: token_revocado token_revocado_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.token_revocado
+    ADD CONSTRAINT token_revocado_pkey PRIMARY KEY (jti);
+
+
+--
 -- Name: evento_tipo_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX evento_tipo_idx ON public.evento USING btree (tipo);
+
+
+--
+-- Name: intento_login_ip_momento_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX intento_login_ip_momento_idx ON public.intento_login USING btree (ip, momento);
 
 
 --
@@ -570,6 +648,13 @@ CREATE INDEX sesion_experimento_idx ON public.sesion USING btree (experimento_id
 --
 
 CREATE INDEX sesion_inicio_idx ON public.sesion USING btree (inicio);
+
+
+--
+-- Name: token_revocado_expira_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX token_revocado_expira_idx ON public.token_revocado USING btree (expira);
 
 
 --

@@ -9,7 +9,7 @@ Al terminar, el servidor tendrá 3 contenedores de Docker:
 ```
   Navegador del profesor ─┐
                           ├──►  :80  Nginx (frontend) ──► backend (Django) ──► db (PostgreSQL)
-  Visores Meta Quest ─────┘          página web           /api/  /admin/        datos en un volumen
+  Visores Meta Quest ─────┘          página web           /api/                datos en un volumen
 ```
 
 Solo el puerto 80 queda abierto. La base de datos no se puede alcanzar desde fuera.
@@ -153,8 +153,7 @@ docker compose exec backend python manage.py clave_lector nuevo@uta.cl --nombre 
 update lector set clave = null where email = 'correo@uta.cl';   -- o: delete from lector where ...
 ```
 
-El panel `/admin/` de Django usa sus propias cuentas (no las de `lector`). Si lo necesitas:
-`docker compose exec backend python manage.py createsuperuser`.
+No hay otras cuentas: el panel `/admin/` de Django ya no existe.
 
 ## 8. Ver lo que pasa (logs)
 
@@ -233,8 +232,6 @@ proxy con certificado delante de sus servidores. En ese caso:
 
    ```
    ALLOWED_HOSTS=localhost,127.0.0.1,laboratorio.uta.cl
-   CSRF_TRUSTED_ORIGINS=https://laboratorio.uta.cl
-   HTTPS=true
    NUM_PROXIES=2
    ```
 

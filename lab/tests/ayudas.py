@@ -90,7 +90,7 @@ def lector_sin_base(rol='docente') -> LectorAutenticado:
 
 
 def usuario_django_sin_base() -> User:
-    """Un usuario de Django (de /admin/): NO es un lector, así que no puede usar la API."""
+    """Un usuario de Django: NO es un lector, así que no puede usar la API."""
     return User(id=1, username='admin', is_staff=True, is_superuser=True, is_active=True)
 
 

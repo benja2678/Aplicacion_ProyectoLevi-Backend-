@@ -66,21 +66,15 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1' if DEBUG else '')
 
-# Necesario para el panel /admin/ cuando el sitio se usa con https o con un puerto
-# distinto, por ejemplo: CSRF_TRUSTED_ORIGINS=https://mi-dominio.cl
-CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
+# Intentos de login permitidos por IP (ver lab/utils/limite_login.py). Ej: 5/min, 20/h.
+LOGIN_RATE = env('LOGIN_RATE', '5/min')
 
 # Llave fija que usa Unity (Meta Quest) para ENVIAR sesiones. Solo sirve para eso.
 # Si está vacía, el envío desde Unity queda desactivado.
 UNITY_API_KEY = env('UNITY_API_KEY')
 
-# Nginx avisa con este encabezado si la conexión original era https.
+# El servidor web de delante avisa con este encabezado si la conexión original era https.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Activar solo cuando el servidor tenga https (certificado). Con http debe quedar en false.
-if env_bool('HTTPS', False):
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -89,45 +83,23 @@ X_FRAME_OPTIONS = 'DENY'
 # ------------------------------------------------------------------ #
 # Aplicaciones
 
+# El backend NO crea tablas: todas están en levi-db-scripts (no se usa `migrate`).
+# auth y contenttypes quedan instaladas solo porque las piden las librerías
+# (cifrado de claves y tokens JWT); sus tablas no existen ni se usan.
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.auth',
     'rest_framework',
-    'rest_framework_simplejwt.token_blacklist',  # permite invalidar tokens al cerrar sesión
     'lab',  # API del laboratorio: controladores, servicios, DAO y DTO
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # sirve el CSS/JS del panel /admin/
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
@@ -162,17 +134,6 @@ if env('POSTGRES_SSLMODE'):
 
 # Los tests usan config/settings_test.py y una base propia en Docker (lab/tests/runner.py).
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Caché guardada en la base de datos: la usa el límite de intentos de login,
-# así el conteo es el mismo para todos los procesos de gunicorn.
-# La tabla se crea sola con `migrate` (ver lab/migrations/0002_cache_table.py).
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'cache_table',
-    }
-}
 
 
 # ------------------------------------------------------------------ #
@@ -196,22 +157,9 @@ USE_TZ = True
 
 
 # ------------------------------------------------------------------ #
-# Archivos estáticos (solo los del panel /admin/; el frontend lo sirve Nginx)
-
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STORAGES = {
-    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
-}
-if DEBUG:
-    STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
-
-
-# ------------------------------------------------------------------ #
 # Tamaño máximo de las peticiones.
 # Un JSON de sesión puede ser grande (muchos eventos) y "Cargar sesiones" puede
-# subir varios archivos juntos. Debe coincidir con client_max_body_size de Nginx.
+# subir varios archivos juntos. Debe coincidir con el límite del servidor web de delante.
 
 MAX_UPLOAD_MB = env_int('MAX_UPLOAD_MB', 50)
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_MB * 1024 * 1024
@@ -229,12 +177,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['lab.utils.auth.EsLector'],
     'DEFAULT_RENDERER_CLASSES': ['lab.utils.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
-    # Los errores del negocio (lab/utils/errores.py) se responden como 400 / 404.
+    # Los errores del negocio (lab/utils/errores.py) se responden como 400 / 401 / 404.
     'EXCEPTION_HANDLER': 'lab.controladores.errores.manejar_errores',
-    # Límite de intentos de login por dirección IP.
-    'DEFAULT_THROTTLE_RATES': {'login': env('LOGIN_RATE', '5/min')},
-    # Cuántos proxies hay delante de Django (1 = Nginx). Sirve para saber la IP real
-    # del cliente al limitar los intentos de login. En tu PC (sin Nginx) es 0.
+    # Cuántos proxies hay delante de Django (1 = el servidor web). Sirve para saber la IP
+    # real del cliente al limitar los intentos de login. En tu PC (sin proxy) es 0.
     'NUM_PROXIES': env_int('NUM_PROXIES', 0),
 }
 
@@ -244,7 +190,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
     # Los tokens los crea lab/servicios/acceso_servicio.py con el correo del lector;
-    # no se usan los usuarios de Django (esos quedan solo para el panel /admin/).
+    # no se usan los usuarios de Django.
 }
 
 

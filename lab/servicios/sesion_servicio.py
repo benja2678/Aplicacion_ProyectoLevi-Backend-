@@ -213,14 +213,6 @@ def eliminar(id_sesion: str) -> None:
     _borrar(fila)
 
 
-def eliminar_por_numero(sesion_id: int) -> None:
-    """Borra por el número interno de la tabla sesion (lo usa el panel /admin/)."""
-    fila = sesion_dao.obtener(sesion_id)
-    if fila is None:
-        raise NoEncontrado()
-    _borrar(fila)
-
-
 def _borrar(fila: dict) -> None:
     with transaction.atomic():
         sesion_dao.borrar(fila['id'])
