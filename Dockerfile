@@ -29,7 +29,7 @@ COPY . .
 
 # Junta el CSS/JS del panel /admin/ en staticfiles/. La SECRET_KEY de aquí es
 # falsa y solo existe durante este paso; la real llega al arrancar el contenedor.
-RUN SECRET_KEY=solo-para-construir-la-imagen python manage.py collectstatic --noinput
+RUN SECRET_KEY=solo-para-construir-la-imagen POSTGRES_HOST=solo-para-construir python manage.py collectstatic --noinput
 
 USER app
 

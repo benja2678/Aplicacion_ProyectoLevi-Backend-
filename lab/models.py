@@ -1,79 +1,63 @@
 """
-Tablas de la base de datos.
+Modelos de Django SOLO para el panel /admin/.
 
-- students: alumnos que el profesor registra en la web.
-- sessions: sesiones que llegan desde Unity (Meta Quest) o que se cargan a mano.
+Las tablas del laboratorio las crean los scripts de levi-db-scripts, no Django:
+por eso estos modelos son `managed = False` (Django nunca las crea, cambia ni borra).
+La API no usa estos modelos: lee y escribe con SQL en la capa DAO (lab/dao/).
 
-Un alumno se une a sus sesiones por el CÓDIGO DE PARTICIPANTE (A001, B002...).
-No hay llave foránea entre las tablas porque una sesión puede llegar antes de que
-el profesor cree al alumno; la unión se hace al mostrar los datos.
+Django sí crea sus propias tablas (usuarios, tokens invalidados, caché del login,
+panel admin) con `python manage.py migrate`.
 """
-
-import uuid
 
 from django.db import models
 
 
-class Student(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    nombre = models.CharField(max_length=200)
-    asignatura = models.CharField(max_length=200, blank=True, default='')
-    # Se guarda siempre en MAYÚSCULAS, así "a001" y "A001" son el mismo código.
-    codigo_participante = models.CharField(max_length=50, unique=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
+class Participante(models.Model):
+    """Tabla participante: un código de visor y, si es un alumno, sus datos."""
+
+    codigo = models.CharField('código', primary_key=True, max_length=50)
+    visor = models.TextField(blank=True, null=True)
+    nombre = models.CharField(max_length=200, blank=True, null=True)
+    apellido = models.CharField(max_length=200, blank=True, null=True)
+    asignatura = models.CharField(max_length=200, blank=True, null=True)
+    registrado = models.DateTimeField()
 
     class Meta:
-        db_table = 'students'
-        ordering = ['creado_en']
-        verbose_name = 'alumno'
-        verbose_name_plural = 'alumnos'
+        managed = False
+        db_table = 'participante'
+        ordering = ['registrado']
+        verbose_name = 'participante (alumno)'
+        verbose_name_plural = 'participantes (alumnos)'
 
     def __str__(self) -> str:
-        return f'{self.nombre} ({self.codigo_participante})'
-
-    def save(self, *args, **kwargs):
-        # Misma regla en la API y en el panel /admin/: sin espacios y en mayúsculas.
-        self.codigo_participante = self.codigo_participante.strip().upper()
-        super().save(*args, **kwargs)
+        return f'{self.nombre} ({self.codigo})' if self.nombre else self.codigo
 
 
-class Session(models.Model):
-    SOURCE_VISOR = 'visor'
-    SOURCE_IMPORTADA = 'importada'
-    SOURCE_CHOICES = [
-        (SOURCE_VISOR, 'Enviada por el visor'),
-        (SOURCE_IMPORTADA, 'Cargada a mano'),
-    ]
+class Sesion(models.Model):
+    """Tabla sesion: el resumen de cada sesión. El detalle está en otras tablas."""
 
-    # Identificador = participantCode_experimentId_startedAt (igual que en el frontend).
-    id = models.CharField(primary_key=True, max_length=255)
-    # Copias de 3 campos del JSON en columnas propias, para buscar y evitar duplicados.
-    participant_code = models.CharField(max_length=50, db_index=True)
-    experiment_id = models.CharField(max_length=50)
-    # Texto TAL CUAL llega de Unity (hora local sin zona). No se convierte a fecha
-    # a propósito: es parte del identificador de la sesión.
-    started_at = models.CharField(max_length=40)
-    # El registro completo de Unity (SessionLog), sin modificar.
-    log = models.JSONField()
-    source = models.CharField(max_length=10, choices=SOURCE_CHOICES)
-    received_at = models.DateTimeField(auto_now_add=True)
+    id = models.BigIntegerField(primary_key=True)
+    participante = models.ForeignKey(
+        Participante, models.DO_NOTHING, db_column='participante_id', related_name='sesiones'
+    )
+    experimento_id = models.TextField('experimento')
+    inicio = models.DateTimeField()
+    termino = models.DateTimeField('término', blank=True, null=True)
+    completada = models.BooleanField()
+    duracion_s = models.DecimalField('duración (s)', max_digits=9, decimal_places=2, blank=True, null=True)
+    correctas = models.IntegerField()
+    tareas_total = models.IntegerField('tareas')
+    version_app = models.TextField('versión de la app', blank=True, null=True)
+    visor_modelo = models.TextField('visor', blank=True, null=True)
+    origen = models.TextField()
+    recibida_en = models.DateTimeField('recibida')
 
     class Meta:
-        db_table = 'sessions'
-        ordering = ['received_at']
+        managed = False
+        db_table = 'sesion'
+        ordering = ['-recibida_en']
         verbose_name = 'sesión'
         verbose_name_plural = 'sesiones'
-        constraints = [
-            # Una misma sesión no puede guardarse dos veces (Unity puede reenviarla).
-            models.UniqueConstraint(
-                fields=['participant_code', 'experiment_id', 'started_at'],
-                name='unique_session',
-            ),
-        ]
 
     def __str__(self) -> str:
-        return self.id
-
-    @staticmethod
-    def make_id(participant_code: str, experiment_id: str, started_at: str) -> str:
-        return f'{participant_code}_{experiment_id}_{started_at}'
+        return f'{self.participante_id} · {self.experimento_id} · {self.inicio}'

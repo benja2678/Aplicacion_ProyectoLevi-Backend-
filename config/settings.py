@@ -1,15 +1,16 @@
 """
 Configuración de Django para el backend del Laboratorio VR.
 
-Todo lo que cambia entre tu PC y el servidor (contraseñas, llaves, base de datos)
-se lee de VARIABLES DE ENTORNO. Nada secreto se escribe en este archivo.
+Todo lo que cambia entre entornos (contraseñas, llaves, base de datos) se lee de
+VARIABLES DE ENTORNO. Nada secreto se escribe en este archivo.
 
-- En tu PC: las variables se leen del archivo `.env` (copia de `.env.example`).
-- En Docker: las entrega docker-compose desde `deploy/.env`.
+Dos entornos, cada uno con su archivo (copias de los .example, NO se suben a git):
+- ENTORNO=dev  (por defecto) -> lee `.env.dev`   base de datos de desarrollo
+- ENTORNO=prod               -> lee `.env.prod`  base de datos de producción
+En Docker no hay archivos .env dentro de la imagen: las variables las entrega
+docker-compose y tienen prioridad.
 
-Regla de la base de datos:
-- Si NO existe POSTGRES_HOST  -> usa SQLite (un archivo db.sqlite3, ideal para probar).
-- Si existe POSTGRES_HOST     -> usa PostgreSQL (lo que se usa con Docker).
+La base de datos es SIEMPRE PostgreSQL, con las tablas de levi-db-scripts.
 """
 
 import os
@@ -21,9 +22,14 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Carga el archivo .env si existe (en Docker no hay .env dentro: las variables
-# ya vienen del sistema y load_dotenv no las pisa).
-load_dotenv(BASE_DIR / '.env')
+ENTORNO = os.environ.get('ENTORNO', 'dev').strip().lower()
+if ENTORNO not in ('dev', 'prod'):
+    raise ImproperlyConfigured('ENTORNO debe ser "dev" o "prod".')
+
+# Carga .env.dev o .env.prod si existe. Las variables que ya existen en el sistema
+# no se pisan (así funcionan Docker y las pruebas).
+ENV_FILE = BASE_DIR / f'.env.{ENTORNO}'
+load_dotenv(ENV_FILE)
 
 
 def env(name: str, default: str = '') -> str:
@@ -92,7 +98,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',  # permite invalidar tokens al cerrar sesión
-    'lab',  # alumnos y sesiones del laboratorio
+    'lab',  # API del laboratorio: controladores, servicios, DAO y DTO
 ]
 
 MIDDLEWARE = [
@@ -129,28 +135,38 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # ------------------------------------------------------------------ #
 # Base de datos
 
-if env('POSTGRES_HOST'):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'HOST': env('POSTGRES_HOST'),
-            'PORT': env('POSTGRES_PORT', '5432'),
-            'NAME': env('POSTGRES_DB', 'laboratorio'),
-            'USER': env('POSTGRES_USER', 'laboratorio'),
-            'PASSWORD': env('POSTGRES_PASSWORD'),
-            # Reutiliza la conexión hasta 60 s, pero antes revisa que siga viva
-            # (por ejemplo, si PostgreSQL se reinició).
-            'CONN_MAX_AGE': 60,
-            'CONN_HEALTH_CHECKS': True,
-        }
+# PostgreSQL con las tablas de levi-db-scripts (las crean esos scripts, no Django).
+if not env('POSTGRES_HOST'):
+    raise ImproperlyConfigured(
+        f'Falta POSTGRES_HOST (dirección de la base de datos). Revisa el archivo {ENV_FILE.name} '
+        f'(cópialo desde {ENV_FILE.name}.example si no existe).'
+    )
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': env('POSTGRES_HOST'),
+        'PORT': env('POSTGRES_PORT', '5432'),
+        'NAME': env('POSTGRES_DB', 'laboratorio'),
+        'USER': env('POSTGRES_USER', 'laboratorio'),
+        'PASSWORD': env('POSTGRES_PASSWORD'),
+        # Reutiliza la conexión hasta 60 s, pero antes revisa que siga viva
+        # (por ejemplo, si PostgreSQL se reinició).
+        'CONN_MAX_AGE': 60,
+        'CONN_HEALTH_CHECKS': True,
+        # Base que crean los tests (y borran al terminar). El usuario necesita permiso
+        # para crear bases (CREATEDB). Por defecto: test_<nombre de la base>.
+        'TEST': {'NAME': env('POSTGRES_TEST_DB') or None},
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
+# Cifrado de la conexión, si el servidor lo pide (disable, require, verify-full…).
+if env('POSTGRES_SSLMODE'):
+    DATABASES['default']['OPTIONS'] = {'sslmode': env('POSTGRES_SSLMODE')}
+
+# Carpeta con los scripts de levi-db-scripts. Solo la usan los tests, para crear las
+# tablas en la base de prueba (ver lab/tests/runner.py).
+LEVI_DB_SCRIPTS = Path(env('LEVI_DB_SCRIPTS', str(BASE_DIR.parent / 'levi-db-scripts')))
+TEST_RUNNER = 'lab.tests.runner.LeviTestRunner'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -218,6 +234,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAdminUser'],
     'DEFAULT_RENDERER_CLASSES': ['lab.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
+    # Los errores del negocio (lab/errores.py) se responden como 400 / 404.
+    'EXCEPTION_HANDLER': 'lab.controladores.errores.manejar_errores',
     # Límite de intentos de login por dirección IP.
     'DEFAULT_THROTTLE_RATES': {'login': env('LOGIN_RATE', '5/min')},
     # Cuántos proxies hay delante de Django (1 = Nginx). Sirve para saber la IP real

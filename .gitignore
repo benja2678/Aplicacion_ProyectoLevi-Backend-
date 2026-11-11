@@ -1,5 +1,7 @@
 # Secretos: NUNCA subir al repositorio
 .env
+.env.dev
+.env.prod
 deploy/.env
 
 # Entorno virtual de Python
@@ -14,7 +16,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Base de datos local (SQLite) y archivos generados por Django
+# Archivos generados por Django (y la base SQLite de versiones antiguas)
 db.sqlite3
 db.sqlite3-journal
 staticfiles/

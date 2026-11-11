@@ -10,7 +10,7 @@ Uso (desde la carpeta proyecto-backend):
     .venv\\Scripts\\python scripts\\probar_api.py
     .venv\\Scripts\\python scripts\\probar_api.py --url http://IP-DEL-SERVIDOR
 
-Lee TEACHER_USERNAME, TEACHER_PASSWORD y UNITY_API_KEY del archivo .env
+Lee TEACHER_USERNAME, TEACHER_PASSWORD y UNITY_API_KEY del archivo .env.dev
 (o del que indiques con --env, por ejemplo deploy/.env).
 Solo usa la librería estándar de Python.
 """
@@ -56,7 +56,7 @@ def main() -> int:
     here = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser(description='Prueba rápida de la API del laboratorio.')
     parser.add_argument('--url', default='http://127.0.0.1:8000', help='dirección del backend o del servidor')
-    parser.add_argument('--env', default=str(here / '.env'), help='archivo .env con las credenciales')
+    parser.add_argument('--env', default=str(here / '.env.dev'), help='archivo .env con las credenciales (por defecto .env.dev)')
     args = parser.parse_args()
 
     env = read_env(Path(args.env))

@@ -2,6 +2,7 @@
 
 # Secretos: nunca dentro de la imagen (llegan como variables de entorno).
 .env
+.env.*
 deploy/
 
 # Entorno virtual y archivos generados en tu PC
