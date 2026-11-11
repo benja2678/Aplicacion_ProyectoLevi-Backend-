@@ -93,17 +93,14 @@ chmod 600 .env                                     # solo tu usuario puede leerl
 nano .env                                          # abre el archivo para editarlo
 ```
 
-En `nano` cambia estas 2 líneas (muévete con las flechas):
+En `nano` cambia esta línea (muévete con las flechas):
 
 ```
 ALLOWED_HOSTS=localhost,127.0.0.1,IP-DEL-SERVIDOR
-TEACHER_PASSWORD=LA-CLAVE-DEL-PROFESOR
 ```
 
 - `ALLOWED_HOSTS`: agrega la IP o el dominio del servidor (separados por comas, sin espacios).
   Si falta, el navegador mostrará **Bad Request (400)**.
-- `TEACHER_PASSWORD`: la clave con la que el profesor entrará al panel. Mínimo 10
-  caracteres; que no sea solo números ni una clave común. Evita los símbolos `$` y `#`.
 - Si el puerto 80 está ocupado, cambia también `HTTP_PORT=8080` (u otro número).
 
 Para guardar: **Ctrl+O** y Enter. Para salir: **Ctrl+X**.
@@ -127,35 +124,28 @@ Al final muestra el estado de los contenedores. Los 3 deben decir `Up`, y `db` a
 
 1. En el navegador de tu PC abre `http://IP-DEL-SERVIDOR/` (o `http://IP-DEL-SERVIDOR:8080/`
    si cambiaste el puerto). Debe aparecer la pantalla de login.
-2. Entra con `profesor` y la clave que pusiste en `TEACHER_PASSWORD`.
+2. Crea la cuenta del profesor (paso 7) y entra con ella.
 3. En el servidor, `curl http://localhost/api/health/` debe responder `{"status":"ok"}`.
    (Si usas otro puerto: `curl http://localhost:8080/api/health/`.)
 
 ## 7. La cuenta del profesor
 
-Se crea **sola** en el primer arranque con `TEACHER_USERNAME` y `TEACHER_PASSWORD`.
-Para confirmarlo:
+No se crea sola: se crea **a mano, una sola vez**, después de encender el sistema.
+Desde `~/laboratorio/proyecto-backend/deploy`:
 
 ```sh
-cd ~/laboratorio/proyecto-backend/deploy
-docker compose logs backend | grep -i "profesor"
+docker compose exec backend python manage.py createsuperuser
 ```
 
-| Mensaje | Qué significa |
-|---|---|
-| `Cuenta del profesor "profesor" creada.` | listo |
-| `La cuenta "profesor" ya existe` | ya estaba creada; no se cambió su clave |
-| `AVISO: no se creó la cuenta del profesor` | la clave era muy débil. Cámbiala en `.env` y ejecuta `docker compose up -d` |
+Pregunta el usuario (por ejemplo `profesor`), un correo (se puede dejar vacío) y la
+clave dos veces (no se ve al escribirla). La clave debe tener mínimo 10 caracteres y no
+ser solo números ni una clave común. La cuenta queda guardada en la base de datos.
 
-Otros comandos útiles (desde `~/laboratorio/proyecto-backend/deploy`):
+Otros comandos útiles (desde la misma carpeta):
 
 ```sh
 docker compose exec backend python manage.py changepassword profesor   # cambiar la clave
-docker compose exec backend python manage.py createsuperuser           # crear otra cuenta
 ```
-
-Una vez creada la cuenta, puedes borrar el valor de `TEACHER_PASSWORD` en `.env`
-(deja la línea como `TEACHER_PASSWORD=`): la cuenta sigue existiendo en la base de datos.
 
 ## 8. Ver lo que pasa (logs)
 

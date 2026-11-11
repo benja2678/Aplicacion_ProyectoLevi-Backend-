@@ -1,18 +1,13 @@
-"""Tests de los comandos que se ejecutan al arrancar el contenedor (entrypoint.sh).
+"""Tests unitarios del comando wait_for_db (lo ejecuta entrypoint.sh al arrancar).
+La conexión a la base se simula: no usa base de datos."""
 
-- wait_for_db: unitario, la conexión se simula.
-- ensure_teacher: usa la base de prueba en Docker (crea un usuario de Django).
-"""
-
-import os
 from io import StringIO
 from unittest import mock
 
-from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db.utils import OperationalError
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase
 
 WAIT = 'lab.management.commands.wait_for_db'
 
@@ -38,30 +33,3 @@ class WaitForDbTests(SimpleTestCase):
         with self.assertRaises(CommandError):
             self.esperar(OperationalError('apagada'), '--timeout', '0')
 
-
-class EnsureTeacherTests(TestCase):
-    CLAVE = 'clave-larga-de-prueba-123'
-
-    def ejecutar(self, **variables):
-        with mock.patch.dict(os.environ, variables):
-            call_command('ensure_teacher', stdout=StringIO())
-
-    def test_crea_la_cuenta_del_profesor(self):
-        self.ejecutar(TEACHER_USERNAME='profe', TEACHER_PASSWORD=self.CLAVE, TEACHER_EMAIL='')
-        usuario = get_user_model().objects.get(username='profe')
-        self.assertTrue(usuario.is_staff and usuario.is_active and usuario.is_superuser)
-        self.assertTrue(usuario.check_password(self.CLAVE))
-
-    def test_si_ya_existe_no_cambia_la_clave(self):
-        get_user_model().objects.create_superuser('profe', '', self.CLAVE)
-        self.ejecutar(TEACHER_USERNAME='profe', TEACHER_PASSWORD='otra-clave-larga-456', TEACHER_EMAIL='')
-        self.assertTrue(get_user_model().objects.get(username='profe').check_password(self.CLAVE))
-
-    def test_clave_debil_no_crea_nada(self):
-        with self.assertRaises(CommandError):
-            self.ejecutar(TEACHER_USERNAME='profe', TEACHER_PASSWORD='12345', TEACHER_EMAIL='')
-        self.assertFalse(get_user_model().objects.exists())
-
-    def test_sin_variables_no_crea_nada(self):
-        self.ejecutar(TEACHER_USERNAME='', TEACHER_PASSWORD='')
-        self.assertFalse(get_user_model().objects.exists())

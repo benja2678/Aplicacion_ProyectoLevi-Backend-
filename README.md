@@ -72,7 +72,7 @@ El JSON que devuelve la API tiene exactamente la forma de `src/types.ts` del fro
 
 ## Entornos: `.env.dev` y `.env.prod`
 
-Las credenciales (base de datos, llaves, cuenta del profesor) van en un archivo por
+Las credenciales (base de datos y llaves) van en un archivo por
 entorno. **Ninguno se sube a git.**
 
 | Archivo | Cuándo se usa | Plantilla |
@@ -99,7 +99,7 @@ py -m venv .venv                                   # 1. crea el entorno de Pytho
 .venv\Scripts\python -m pip install -r requirements.txt   # 2. instala las librerías
 copy .env.dev.example .env.dev                     # 3. crea tu .env.dev y complétalo
 .venv\Scripts\python manage.py migrate             # 4. crea las tablas de Django (usuarios, tokens)
-.venv\Scripts\python manage.py ensure_teacher      # 5. crea la cuenta del profesor (desde .env.dev)
+.venv\Scripts\python manage.py createsuperuser     # 5. crea la cuenta del profesor (una vez; pregunta usuario y clave)
 .venv\Scripts\python manage.py runserver           # 6. arranca en http://localhost:8000
 ```
 
@@ -111,7 +111,6 @@ Otros comandos útiles:
 ```powershell
 .venv\Scripts\python manage.py test lab                 # tests unitarios (ver abajo)
 .venv\Scripts\python manage.py changepassword profesor  # cambiar la contraseña del profesor
-.venv\Scripts\python manage.py createsuperuser          # otra forma de crear la cuenta
 ```
 
 Panel de Django: http://localhost:8000/admin/ (con la cuenta del profesor).
@@ -132,7 +131,7 @@ Cada capa de `lab/` tiene sus tests en `lab/tests/`:
 | `servicios/` | reglas del negocio (el DAO se simula con *mocks*) | no |
 | `controladores/` | rutas, permisos, códigos HTTP y forma del JSON (el servicio se simula) | solo el login |
 | `dao/` | las consultas SQL, contra un PostgreSQL de verdad | **sí** |
-| `test_auth.py`, `test_admin.py`, `test_renderers.py`, `test_comandos.py` | el resto del código de `lab/` | solo `ensure_teacher` |
+| `test_auth.py`, `test_admin.py`, `test_renderers.py`, `test_comandos.py` | el resto del código de `lab/` | no |
 
 **La base de prueba** (la arma `lab/tests/runner.py`):
 
@@ -194,7 +193,6 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `lab/admin.py` | panel `/admin/`: alumnos y sesiones, usando los mismos servicios |
 | `lab/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
 | `lab/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
-| `lab/management/commands/ensure_teacher.py` | crea la cuenta del profesor desde `.env.dev` / `.env.prod` |
 | `config/settings_test.py` | configuración de los tests (no lee `.env.dev`/`.env.prod`) |
 | `lab/tests/` | tests unitarios, una carpeta por capa (ver "Tests unitarios") |
 | `lab/tests/runner.py` | levanta el PostgreSQL de prueba en Docker y lo borra al terminar |
@@ -202,7 +200,7 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `lab/tests/datos/A015_…json` | un JSON real enviado por un visor, usado en los tests |
 | `.env.dev.example` / `.env.prod.example` | plantillas de variables de cada entorno |
 | `Dockerfile` | imagen del backend: Python 3.13 + gunicorn en el puerto 8000 |
-| `entrypoint.sh` | al arrancar el contenedor: espera la BD, migra, crea al profesor y arranca |
+| `entrypoint.sh` | al arrancar el contenedor: espera la BD, migra y arranca |
 | `.dockerignore` | lo que nunca entra a la imagen (`.env`, `deploy/`, venv, respaldos) |
 | `lab/management/commands/wait_for_db.py` | espera a que PostgreSQL acepte conexiones |
 | `deploy/docker-compose.yml` | los 3 contenedores juntos: `db`, `backend` y `frontend` (Nginx, puerto 80) |
