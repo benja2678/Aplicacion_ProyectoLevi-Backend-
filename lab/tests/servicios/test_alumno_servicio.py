@@ -11,7 +11,7 @@ from django.db import IntegrityError
 from django.test import SimpleTestCase
 
 from lab.dto.alumno import AlumnoEntradaDTO
-from lab.errores import DatosInvalidos, NoEncontrado
+from lab.utils.errores import DatosInvalidos, NoEncontrado
 from lab.servicios import alumno_servicio, letra_del_visor
 
 REGISTRADO = datetime(2026, 11, 3, 15, 0, tzinfo=UTC)

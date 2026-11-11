@@ -13,10 +13,10 @@ from django.db import DataError
 from django.test import SimpleTestCase
 
 from lab.dto.sesion import ORIGEN_IMPORTADA, ORIGEN_VISOR, SesionInvalida, SesionLogDTO
-from lab.errores import DatosInvalidos, NoEncontrado
+from lab.utils.errores import DatosInvalidos, NoEncontrado
 from lab.servicios import sesion_servicio
 
-from ..utils import session_log, sesion_real_del_visor
+from ..ayudas import session_log, sesion_real_del_visor
 
 # Catálogo de N1 como lo devuelve catalogo_dao.tareas_del_experimento.
 TAREAS_N1 = {'V1': 7, 'V2': 8, 'V3': 9, 'I_total': 10, 'I_R2': 11, 'I_R4': 12}

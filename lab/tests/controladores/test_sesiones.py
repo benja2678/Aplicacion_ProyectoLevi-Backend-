@@ -8,9 +8,9 @@ from urllib.parse import quote
 from rest_framework.test import APISimpleTestCase
 
 from lab.dto.sesion import ResultadoImportacionDTO, SesionGuardadaDTO, SesionInvalida, SesionLogDTO
-from lab.errores import DatosInvalidos, NoEncontrado
+from lab.utils.errores import DatosInvalidos, NoEncontrado
 
-from ..utils import TEST_API_KEY, profesor_sin_base, session_log
+from ..ayudas import TEST_API_KEY, profesor_sin_base, session_log
 
 INGEST = '/api/sessions/ingest/'
 

@@ -131,7 +131,8 @@ Cada capa de `lab/` tiene sus tests en `lab/tests/`:
 | `servicios/` | reglas del negocio (el DAO se simula con *mocks*) | no |
 | `controladores/` | rutas, permisos, códigos HTTP y forma del JSON (el servicio se simula) | solo el login |
 | `dao/` | las consultas SQL, contra un PostgreSQL de verdad | **sí** |
-| `test_auth.py`, `test_admin.py`, `test_renderers.py`, `test_comandos.py` | el resto del código de `lab/` | no |
+| `utils/` | `auth.py`, `errores.py` y `renderers.py` | no |
+| `test_admin.py`, `test_comandos.py` | el panel `/admin/` y el comando `wait_for_db` | no |
 
 **La base de prueba** (la arma `lab/tests/runner.py`):
 
@@ -188,11 +189,11 @@ Luego abre http://localhost/ (o `http://localhost:PUERTO/` si cambiaste `HTTP_PO
 | `lab/dto/` | **capa DTO**: `alumno.py`, `sesion.py` (valida el JSON del visor y lo vuelve a armar igual) y `fechas.py` |
 | `lab/servicios/` | **capa servicio**: `alumno_servicio.py` y `sesion_servicio.py` (reglas y transacciones) |
 | `lab/dao/` | **capa DAO**: consultas SQL de `participante`, `sesion` (+ detalle) y catálogo |
-| `lab/errores.py` | errores del negocio: `DatosInvalidos` (400) y `NoEncontrado` (404) |
+| `lab/utils/errores.py` | errores del negocio: `DatosInvalidos` (400) y `NoEncontrado` (404) |
 | `lab/models.py` | modelos solo para el panel `/admin/` (`managed = False`: Django no toca esas tablas) |
 | `lab/admin.py` | panel `/admin/`: alumnos y sesiones, usando los mismos servicios |
-| `lab/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
-| `lab/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
+| `lab/utils/auth.py` | reglas de acceso: solo el profesor recibe tokens y la llave de Unity |
+| `lab/utils/renderers.py` | respuestas JSON con `charset=utf-8` (para que las tildes se vean bien en cualquier cliente) |
 | `config/settings_test.py` | configuración de los tests (no lee `.env.dev`/`.env.prod`) |
 | `lab/tests/` | tests unitarios, una carpeta por capa (ver "Tests unitarios") |
 | `lab/tests/runner.py` | levanta el PostgreSQL de prueba en Docker y lo borra al terminar |

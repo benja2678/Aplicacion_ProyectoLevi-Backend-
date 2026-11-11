@@ -1,10 +1,10 @@
-"""Tests unitarios de lab/controladores/errores.py y lab/errores.py."""
+"""Tests unitarios de lab/controladores/errores.py."""
 
 from django.test import SimpleTestCase
 from rest_framework.exceptions import NotAuthenticated
 
 from lab.controladores.errores import manejar_errores
-from lab.errores import DatosInvalidos, NoEncontrado
+from lab.utils.errores import DatosInvalidos, NoEncontrado
 
 
 class ManejarErroresTests(SimpleTestCase):
@@ -24,9 +24,3 @@ class ManejarErroresTests(SimpleTestCase):
         self.assertEqual(manejar_errores(NotAuthenticated(), {}).status_code, 401)
         self.assertIsNone(manejar_errores(ValueError('error del programa'), {}))  # -> 500
 
-
-class ErroresTests(SimpleTestCase):
-    def test_texto_del_error(self):
-        self.assertEqual(str(DatosInvalidos('Mensaje')), 'Mensaje')
-        self.assertEqual(str(DatosInvalidos(campos={'a': ['Uno.'], 'b': ['Dos.']})), 'Uno. Dos.')
-        self.assertEqual(str(NoEncontrado()), 'No encontrado.')

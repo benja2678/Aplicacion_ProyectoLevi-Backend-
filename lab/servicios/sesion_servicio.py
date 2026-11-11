@@ -37,7 +37,7 @@ from ..dto.sesion import (
     TareaResumenDTO,
     leer_json,
 )
-from ..errores import DatosInvalidos, NoEncontrado
+from ..utils.errores import DatosInvalidos, NoEncontrado
 from . import letra_del_visor
 
 # ------------------------------------------------------------------ #

@@ -10,9 +10,9 @@ from unittest import mock
 from rest_framework.test import APISimpleTestCase
 
 from lab.dto.alumno import AlumnoDTO, AlumnoEntradaDTO
-from lab.errores import DatosInvalidos, NoEncontrado
+from lab.utils.errores import DatosInvalidos, NoEncontrado
 
-from ..utils import profesor_sin_base
+from ..ayudas import profesor_sin_base
 
 CAMILA = AlumnoDTO(codigo='A001', nombre='Camila', apellido='Rojas', asignatura='Electrónica Digital',
                    registrado=datetime(2026, 11, 3, 15, 0, tzinfo=UTC))

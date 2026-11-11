@@ -226,9 +226,9 @@ REST_FRAMEWORK = {
     # Las únicas excepciones (login y envío de Unity) lo indican en su vista.
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAdminUser'],
-    'DEFAULT_RENDERER_CLASSES': ['lab.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
+    'DEFAULT_RENDERER_CLASSES': ['lab.utils.renderers.UTF8JSONRenderer'],  # JSON con charset=utf-8
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
-    # Los errores del negocio (lab/errores.py) se responden como 400 / 404.
+    # Los errores del negocio (lab/utils/errores.py) se responden como 400 / 404.
     'EXCEPTION_HANDLER': 'lab.controladores.errores.manejar_errores',
     # Límite de intentos de login por dirección IP.
     'DEFAULT_THROTTLE_RATES': {'login': env('LOGIN_RATE', '5/min')},
@@ -244,7 +244,7 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     # Solo cuentas activas de tipo staff (el profesor) reciben tokens.
-    'USER_AUTHENTICATION_RULE': 'lab.auth.teacher_can_login',
+    'USER_AUTHENTICATION_RULE': 'lab.utils.auth.teacher_can_login',
 }
 
 

@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from lab.dao.base import consultar, consultar_uno, ejecutar, ejecutar_varios
 
-from ..utils import contar
+from ..ayudas import contar
 
 
 class BaseDaoTests(TestCase):

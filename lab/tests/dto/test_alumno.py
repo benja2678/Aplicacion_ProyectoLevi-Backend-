@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from django.test import SimpleTestCase
 
 from lab.dto.alumno import AlumnoDTO, AlumnoEntradaDTO
-from lab.errores import DatosInvalidos
+from lab.utils.errores import DatosInvalidos
 
 
 class AlumnoEntradaDTOTests(SimpleTestCase):

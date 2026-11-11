@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from ..dao import participante_dao
 from ..dto.alumno import AlumnoDTO, AlumnoEntradaDTO
-from ..errores import DatosInvalidos, NoEncontrado
+from ..utils.errores import DatosInvalidos, NoEncontrado
 from . import letra_del_visor
 
 

@@ -1,11 +1,11 @@
-"""Tests unitarios de lab/auth.py (sin base de datos)."""
+"""Tests unitarios de lab/utils/auth.py (sin base de datos)."""
 
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
-from lab.auth import HasUnityApiKey, teacher_can_login
+from lab.utils.auth import HasUnityApiKey, teacher_can_login
 
-from .utils import profesor_sin_base
+from ..ayudas import profesor_sin_base
 
 
 class TeacherCanLoginTests(SimpleTestCase):

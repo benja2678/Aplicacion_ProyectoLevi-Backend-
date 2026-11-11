@@ -1,8 +1,8 @@
-"""Tests unitarios de lab/renderers.py."""
+"""Tests unitarios de lab/utils/renderers.py."""
 
 from django.test import SimpleTestCase
 
-from lab.renderers import UTF8JSONRenderer
+from lab.utils.renderers import UTF8JSONRenderer
 
 
 class UTF8JSONRendererTests(SimpleTestCase):

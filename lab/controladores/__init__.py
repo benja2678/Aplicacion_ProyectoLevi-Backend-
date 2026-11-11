@@ -9,7 +9,7 @@ responde con el DTO de salida convertido a JSON. No tiene reglas de negocio ni S
 - sesiones.py   /api/sessions/, /api/sessions/<id>/, import/ e ingest/ (Unity)
 - errores.py    convierte DatosInvalidos / NoEncontrado en respuestas 400 / 404.
 
-Quién puede entrar (ver lab/auth.py):
+Quién puede entrar (ver lab/utils/auth.py):
 - Sin token: health, login, refresh, logout.
 - Solo con la llave de Unity (X-Api-Key): POST /api/sessions/ingest/.
 - Todo lo demás: token JWT del profesor.

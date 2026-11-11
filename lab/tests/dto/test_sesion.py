@@ -14,7 +14,7 @@ from lab.dto.sesion import (
     leer_json,
 )
 
-from ..utils import evento, session_log, sesion_real_del_visor
+from ..ayudas import evento, session_log, sesion_real_del_visor
 
 
 class LeerJsonTests(SimpleTestCase):

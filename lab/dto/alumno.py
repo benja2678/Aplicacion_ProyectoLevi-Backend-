@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from ..errores import DatosInvalidos
+from ..utils.errores import DatosInvalidos
 from .fechas import a_hora_local
 
 LARGO_TEXTO = 200

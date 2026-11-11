@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.test import APISimpleTestCase, APITestCase
 
-from ..utils import profesor_sin_base
+from ..ayudas import profesor_sin_base
 
 CLAVE = 'Clave-Del-Profesor-2026'
 

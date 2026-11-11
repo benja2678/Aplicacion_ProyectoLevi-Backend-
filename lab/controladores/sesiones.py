@@ -15,7 +15,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..auth import HasUnityApiKey
+from ..utils.auth import HasUnityApiKey
 from ..servicios import sesion_servicio
 
 

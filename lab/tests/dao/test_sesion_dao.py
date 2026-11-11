@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from lab.dao import catalogo_dao, sesion_dao
 
-from ..utils import contar, sql_uno
+from ..ayudas import contar, sql_uno
 
 INICIO_N1 = datetime(2026, 11, 5, 10, 31, 12)
 

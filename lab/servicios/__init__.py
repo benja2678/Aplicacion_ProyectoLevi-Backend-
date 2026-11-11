@@ -6,7 +6,7 @@ Capa de servicios (reglas del negocio).
 
 Reciben y devuelven DTO, usan los DAO para leer y guardar, y deciden las
 transacciones (todo o nada). No conocen HTTP: los errores se lanzan como
-DatosInvalidos o NoEncontrado (lab/errores.py).
+DatosInvalidos o NoEncontrado (lab/utils/errores.py).
 """
 
 import re

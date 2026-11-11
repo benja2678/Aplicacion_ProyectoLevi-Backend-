@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
-from ..errores import DatosInvalidos, NoEncontrado
+from ..utils.errores import DatosInvalidos, NoEncontrado
 
 
 def manejar_errores(exc, context):

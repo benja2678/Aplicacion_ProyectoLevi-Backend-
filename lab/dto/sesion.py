@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from ..errores import DatosInvalidos
+from ..utils.errores import DatosInvalidos
 from .fechas import a_hora_local, leer_fecha_del_visor, texto_del_visor
 
 # Mismos valores que EventTypes en SessionLog.cs y que el CHECK de la tabla evento.

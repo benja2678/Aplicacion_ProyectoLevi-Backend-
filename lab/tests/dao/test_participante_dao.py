@@ -11,7 +11,7 @@ from django.test import TestCase
 
 from lab.dao import participante_dao
 
-from ..utils import contar
+from ..ayudas import contar
 
 
 class ParticipanteDaoTests(TestCase):

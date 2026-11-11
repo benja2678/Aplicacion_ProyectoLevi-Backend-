@@ -9,7 +9,7 @@ from django import forms
 from django.contrib import admin
 
 from .dto.alumno import AlumnoEntradaDTO
-from .errores import DatosInvalidos
+from .utils.errores import DatosInvalidos
 from .models import Participante, Sesion
 from .servicios import alumno_servicio, sesion_servicio
 
