@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------
 # Imagen de Docker del backend: Django + gunicorn en el puerto 8000.
 #
-# No se usa sola: la arranca docker compose (ver deploy/docker-compose.yml),
+# No se usa sola: la arranca docker compose (ver docker-compose.yml),
 # que le entrega las variables de entorno (contraseñas, llaves, base de datos).
 # ------------------------------------------------------------------
 FROM python:3.13-slim

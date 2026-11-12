@@ -1,0 +1,62 @@
+# ------------------------------------------------------------------
+# Backend del Laboratorio VR en el servidor: un servicio por entorno.
+#
+#   /opt/levi/dev   ->  docker compose up -d --build levi_back_dev
+#   /opt/levi/prod  ->  docker compose up -d --build levi_back_prod
+#
+# Cada carpeta tiene su propia copia del backend y su archivo de variables
+# (.env.dev o .env.prod, que NO se suben a git). La base de datos NO va en
+# Docker: es el PostgreSQL que ya está en el servidor (levi_dev / levi_prod).
+# ------------------------------------------------------------------
+
+# Los registros (logs) se limitan a 3 archivos de 10 MB para no llenar el disco.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Lo que comparten los dos entornos.
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Desde el contenedor, "host.docker.internal" es el propio servidor: así se llega
+  # al PostgreSQL instalado en él (POSTGRES_HOST=host.docker.internal en el .env).
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  # Docker revisa cada 30 s que el backend responda.
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=5)"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
+  logging: *logging
+
+services:
+  # Entorno de Desarrollo
+  levi_back_dev:
+    <<: *backend
+    container_name: levi_back_dev
+    environment:
+      - ENTORNO=dev
+    env_file:
+      - path: .env.dev
+        required: false   # en la carpeta prod no existe; ahí no se usa este servicio
+    ports:
+      - "127.0.0.1:8001:8000"   # Solo accesible internamente vía Nginx
+    restart: unless-stopped
+
+  # Entorno de Producción
+  levi_back_prod:
+    <<: *backend
+    container_name: levi_back_prod
+    environment:
+      - ENTORNO=prod
+    env_file:
+      - path: .env.prod
+        required: false   # en la carpeta dev no existe; ahí no se usa este servicio
+    ports:
+      - "127.0.0.1:8002:8000"   # Solo accesible internamente vía Nginx
+    restart: always
