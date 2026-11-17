@@ -10,26 +10,13 @@ visor durante la sesión:
   El detalle es directamente la categoría (OverRange, MeterOff…).
 """
 
-from datetime import datetime, timedelta
-from decimal import Decimal
-from io import BytesIO
-from typing import Any
-
-from django.utils import timezone
-from openpyxl import Workbook
-from openpyxl.styles import Font
-from openpyxl.utils import get_column_letter
+from collections import defaultdict
+from datetime import timedelta
 
 from ..dao import reporte_dao
 from ..dto.fechas import texto_del_visor
-from ..dto.reporte import IncidenteDTO, RangoFechasDTO
-
-VEREDICTOS = {
-    'Correct': 'Correcta',
-    'OutOfTolerance': 'Valor incorrecto',
-    'ReversedPolarity': 'Puntas invertidas',
-    'SinRegistrar': 'No la midió',
-}
+from ..dto.reporte import AlumnoResumenDTO, IncidenteDTO, RangoFechasDTO, SesionResumenDTO
+from . import reporte_excel
 
 
 # ------------------------------------------------------------------ #
@@ -42,90 +29,103 @@ def _categoria(tipo: str, detalle: str) -> str:
     return detalle.strip()
 
 
+def _incidente(f: dict) -> IncidenteDTO:
+    return IncidenteDTO(
+        id_sesion=f"{f['codigo']}_{f['experimento_id']}_{texto_del_visor(f['inicio'])}",
+        codigo=f['codigo'],
+        alumno=f['alumno'] or '',
+        experimento_id=f['experimento_id'],
+        experimento=f['experimento'],
+        momento=f['inicio'] + timedelta(seconds=float(f['t_s'])),
+        segundo=float(f['t_s']),
+        tipo=f['tipo'],
+        categoria=_categoria(f['tipo'], f['detalle']),
+        medicion=f['medicion'],
+        detalle=f['detalle'],
+    )
+
+
 def listar_incidentes(rango: RangoFechasDTO) -> list[IncidenteDTO]:
-    return [
-        IncidenteDTO(
-            id_sesion=f"{f['codigo']}_{f['experimento_id']}_{texto_del_visor(f['inicio'])}",
-            codigo=f['codigo'],
-            alumno=f['alumno'] or '',
-            experimento_id=f['experimento_id'],
-            experimento=f['experimento'],
-            momento=f['inicio'] + timedelta(seconds=float(f['t_s'])),
-            segundo=float(f['t_s']),
-            tipo=f['tipo'],
-            categoria=_categoria(f['tipo'], f['detalle']),
-            medicion=f['medicion'],
-            detalle=f['detalle'],
-        )
-        for f in reporte_dao.incidentes(rango.inicio, rango.fin)
-    ]
+    return [_incidente(f) for f in reporte_dao.incidentes(rango.inicio, rango.fin)]
+
+
+# ------------------------------------------------------------------ #
+# Resumen por alumno
+
+
+def _duracion(segundos) -> float | None:
+    """Una duración negativa es un error del registro (pasa con pruebas desde el editor de Unity):
+    se deja vacía para que no arruine el tiempo promedio. La hoja "Sesiones" igual muestra el dato original."""
+    if segundos is None or segundos < 0:
+        return None
+    return float(segundos)
+
+
+def resumir_por_alumno(sesiones: list[dict], mediciones: list[dict], incidentes: list[dict]) -> list[AlumnoResumenDTO]:
+    """Agrupa por código del visor las sesiones, mediciones e incidentes, y calcula sus métricas.
+
+    Una sesión se reconoce por (código, experimento, inicio): así se cruzan las tres consultas.
+    Solo aparecen los alumnos que tienen sesiones en el rango, ordenados por código.
+    """
+    conteo: dict[tuple, dict[str, int]] = defaultdict(lambda: {'diagnostico': 0, 'rechazo': 0})
+    incidentes_de: dict[str, list[IncidenteDTO]] = defaultdict(list)
+    for f in incidentes:
+        conteo[(f['codigo'], f['experimento_id'], f['inicio'])][f['tipo']] += 1
+        incidentes_de[f['codigo']].append(_incidente(f))
+
+    mediciones_de: dict[str, list[dict]] = defaultdict(list)
+    for f in mediciones:
+        mediciones_de[f['codigo']].append(f)
+
+    sesiones_de: dict[str, list[dict]] = defaultdict(list)
+    for f in sesiones:
+        sesiones_de[f['codigo']].append(f)
+
+    alumnos = []
+    for codigo in sorted(sesiones_de):
+        filas = sorted(sesiones_de[codigo], key=lambda f: f['inicio'])
+        resumen = []
+        for numero, f in enumerate(filas, start=1):
+            c = conteo[(codigo, f['experiment_id'], f['inicio'])]
+            resumen.append(SesionResumenDTO(
+                numero=numero,
+                experimento_id=f['experiment_id'],
+                experimento=f['experimento'],
+                inicio=f['inicio'],
+                completada=bool(f['completada']),
+                duracion_s=_duracion(f['duracion_s']),
+                correctas=f['correctas'] or 0,
+                mediciones=f['tareas'] or 0,
+                fallas=c['diagnostico'],
+                mal_uso=c['rechazo'],
+                ayudas=f['ayudas'] or 0,
+                intento=f['n_sesion'],
+            ))
+        alumnos.append(AlumnoResumenDTO(
+            codigo=codigo,
+            alumno=filas[0]['alumno'] or '',
+            asignatura=filas[0]['asignatura'] or '',
+            sesiones=resumen,
+            mediciones=mediciones_de[codigo],
+            incidentes=incidentes_de[codigo],
+        ))
+    return alumnos
 
 
 # ------------------------------------------------------------------ #
 # Excel
 
 
-def _celda(valor: Any) -> Any:
-    """Convierte cada dato a algo que Excel entiende."""
-    if isinstance(valor, bool):
-        return 'Sí' if valor else 'No'
-    if isinstance(valor, Decimal):
-        return float(valor)
-    if isinstance(valor, datetime) and valor.tzinfo is not None:
-        # Excel no maneja zonas horarias: se escribe en hora de Chile.
-        return timezone.localtime(valor).replace(tzinfo=None)
-    return valor
-
-
-def _hoja(libro: Workbook, titulo: str, columnas: list[str], filas: list[list[Any]]) -> None:
-    hoja = libro.create_sheet(titulo)
-    hoja.append(columnas)
-    for celda in hoja[1]:
-        celda.font = Font(bold=True)
-    for fila in filas:
-        hoja.append([_celda(v) for v in fila])
-    hoja.freeze_panes = 'A2'  # el encabezado queda fijo al bajar
-    hoja.auto_filter.ref = hoja.dimensions  # flechas para filtrar en cada columna
-    for i, columna in enumerate(columnas, start=1):
-        largo = max([len(columna)] + [len(str(_celda(f[i - 1]) or '')) for f in filas[:200]])
-        hoja.column_dimensions[get_column_letter(i)].width = min(max(largo + 2, 10), 60)
-        if any(isinstance(f[i - 1], datetime) for f in filas[:5]):
-            for celda in hoja[get_column_letter(i)][1:]:
-                celda.number_format = 'yyyy-mm-dd hh:mm:ss'
-
-
 def generar_excel(rango: RangoFechasDTO) -> tuple[bytes, str]:
     """Devuelve (contenido del .xlsx, nombre del archivo)."""
-    libro = Workbook()
-    libro.remove(libro.active)  # se quita la hoja vacía que trae por defecto
-
-    _hoja(libro, 'Sesiones', [
-        'Código', 'Alumno', 'Asignatura', 'Experimento', 'Título', 'Inicio', 'Término', 'Completada',
-        'Duración (s)', 'Laboratorio (s)', 'Correctas', 'Mediciones', 'Rechazos', 'Ayudas', 'Recentrados',
-        'N.º de intento', 'Cuenta para el análisis', 'Origen', 'Recibida',
-    ], [[
-        f['codigo'], f['alumno'], f['asignatura'], f['experiment_id'], f['experimento'], f['inicio'], f['termino'],
-        f['completada'], f['duracion_s'], f['laboratorio_s'], f['correctas'], f['tareas'], f['rechazos'], f['ayudas'],
-        f['recentrados'], f['n_sesion'], f['cuenta'], f['origen'], f['recibida_en'],
-    ] for f in reporte_dao.sesiones(rango.inicio, rango.fin)])
-
-    _hoja(libro, 'Mediciones', [
-        'Código', 'Alumno', 'Experimento', 'Inicio de la sesión', 'Medición', 'Magnitud', 'Intentos',
-        'Rechazos', 'Resultado', 'Intento en que acertó', 'Primera lectura (s)', 'Primera correcta (s)',
-    ], [[
-        f['codigo'], f['alumno'], f['experiment_id'], f['inicio'], f['tarea'], f['magnitud'], f['intentos'],
-        f['rechazos'], VEREDICTOS.get(f['veredicto_final'], f['veredicto_final']), f['intento_primera_correcta'],
-        f['primera_lectura_s'], f['primera_correcta_s'],
-    ] for f in reporte_dao.mediciones(rango.inicio, rango.fin)])
-
-    _hoja(libro, 'Incidentes', [
-        'Código', 'Alumno', 'Experimento', 'Momento', 'Segundo de la sesión', 'Tipo', 'Incidente',
-        'Medición', 'Detalle',
-    ], [[
-        i.codigo, i.alumno, i.experimento_id, i.momento, i.segundo, i.tipo_texto, i.categoria_texto,
-        i.medicion, i.detalle,
-    ] for i in listar_incidentes(rango)])
-
-    salida = BytesIO()
-    libro.save(salida)
-    return salida.getvalue(), f'laboratorio_vr_{rango.en_texto()}.xlsx'
+    sesiones = reporte_dao.sesiones(rango.inicio, rango.fin)
+    mediciones = reporte_dao.mediciones(rango.inicio, rango.fin)
+    incidentes = reporte_dao.incidentes(rango.inicio, rango.fin)
+    contenido = reporte_excel.construir(
+        rango=rango.descripcion(),
+        alumnos=resumir_por_alumno(sesiones, mediciones, incidentes),
+        sesiones=sesiones,
+        mediciones=mediciones,
+        incidentes=[_incidente(f) for f in incidentes],
+    )
+    return contenido, f'laboratorio_vr_{rango.en_texto()}.xlsx'

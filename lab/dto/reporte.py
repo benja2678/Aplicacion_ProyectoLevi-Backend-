@@ -5,9 +5,11 @@ DTO de los reportes (incidentes y exportación a Excel).
                      y "hasta" incluye ese día completo). Se compara con el inicio de la sesión.
     IncidenteDTO     un incidente de una sesión: falla del circuito (evento 'diagnostico') o
                      registro rechazado por usar mal el multímetro (evento 'rechazo').
+    SesionResumenDTO las métricas de UNA sesión de un alumno (para su hoja del Excel).
+    AlumnoResumenDTO las métricas de un alumno en el rango: sus sesiones, mediciones e incidentes.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -77,6 +79,18 @@ class RangoFechasDTO:
             return f'hasta_{self.hasta.isoformat()}'
         return 'todo'
 
+    def descripcion(self) -> str:
+        """Para leer en el Excel: "Del 01-11-2026 al 30-11-2026", "Todas las fechas"…"""
+        def dia(d: date) -> str:
+            return d.strftime('%d-%m-%Y')
+        if self.desde and self.hasta:
+            return f'Del {dia(self.desde)} al {dia(self.hasta)}'
+        if self.desde:
+            return f'Desde el {dia(self.desde)}'
+        if self.hasta:
+            return f'Hasta el {dia(self.hasta)}'
+        return 'Todas las fechas'
+
 
 @dataclass(frozen=True)
 class IncidenteDTO:
@@ -116,3 +130,88 @@ class IncidenteDTO:
             'task': self.medicion,
             'detail': self.detalle,
         }
+
+
+def _porcentaje(parte: int, total: int) -> float | None:
+    """0.75 = 75 %. None si no había nada que medir (para no inventar un 0 %)."""
+    return parte / total if total else None
+
+
+@dataclass(frozen=True)
+class SesionResumenDTO:
+    numero: int                  # 1, 2, 3… en el orden en que el alumno hizo sus sesiones
+    experimento_id: str
+    experimento: str
+    inicio: datetime
+    completada: bool
+    duracion_s: float | None
+    correctas: int
+    mediciones: int
+    fallas: int                  # fallas del circuito (eventos 'diagnostico')
+    mal_uso: int                 # registros rechazados por usar mal el multímetro
+    ayudas: int
+    intento: int                 # n.º de intento en ese experimento (1 = primera vez)
+
+    @property
+    def etiqueta(self) -> str:
+        """Nombre corto para los gráficos: "Sesión 1 · N1"."""
+        return f'Sesión {self.numero} · {self.experimento_id}'
+
+    @property
+    def aciertos(self) -> float | None:
+        return _porcentaje(self.correctas, self.mediciones)
+
+    @property
+    def duracion_min(self) -> float | None:
+        return self.duracion_s / 60 if self.duracion_s is not None else None
+
+
+@dataclass(frozen=True)
+class AlumnoResumenDTO:
+    codigo: str
+    alumno: str                  # nombre y apellido; '' si el código no es de ningún alumno
+    asignatura: str
+    sesiones: list[SesionResumenDTO] = field(default_factory=list)
+    mediciones: list[dict] = field(default_factory=list)       # filas de reporte_dao.mediciones
+    incidentes: list[IncidenteDTO] = field(default_factory=list)
+
+    @property
+    def nombre(self) -> str:
+        return self.alumno or f'Sin registrar ({self.codigo})'
+
+    @property
+    def completadas(self) -> int:
+        return sum(1 for s in self.sesiones if s.completada)
+
+    @property
+    def correctas(self) -> int:
+        return sum(s.correctas for s in self.sesiones)
+
+    @property
+    def total_mediciones(self) -> int:
+        return sum(s.mediciones for s in self.sesiones)
+
+    @property
+    def aciertos(self) -> float | None:
+        return _porcentaje(self.correctas, self.total_mediciones)
+
+    @property
+    def tiempo_promedio_min(self) -> float | None:
+        minutos = [s.duracion_min for s in self.sesiones if s.duracion_min is not None]
+        return sum(minutos) / len(minutos) if minutos else None
+
+    @property
+    def fallas(self) -> int:
+        return sum(s.fallas for s in self.sesiones)
+
+    @property
+    def mal_uso(self) -> int:
+        return sum(s.mal_uso for s in self.sesiones)
+
+    @property
+    def ayudas(self) -> int:
+        return sum(s.ayudas for s in self.sesiones)
+
+    @property
+    def ultima_sesion(self) -> datetime | None:
+        return max((s.inicio for s in self.sesiones), default=None)

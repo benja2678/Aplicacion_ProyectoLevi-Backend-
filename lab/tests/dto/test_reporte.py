@@ -41,6 +41,13 @@ class RangoFechasDTOTests(SimpleTestCase):
         self.assertEqual(RangoFechasDTO(hasta=d2).en_texto(), 'hasta_2026-11-30')
         self.assertEqual(RangoFechasDTO().en_texto(), 'todo')
 
+    def test_descripcion_para_leer_en_el_excel(self):
+        d1, d2 = date(2026, 11, 1), date(2026, 11, 30)
+        self.assertEqual(RangoFechasDTO(d1, d2).descripcion(), 'Del 01-11-2026 al 30-11-2026')
+        self.assertEqual(RangoFechasDTO(desde=d1).descripcion(), 'Desde el 01-11-2026')
+        self.assertEqual(RangoFechasDTO(hasta=d2).descripcion(), 'Hasta el 30-11-2026')
+        self.assertEqual(RangoFechasDTO().descripcion(), 'Todas las fechas')
+
 
 class IncidenteDTOTests(SimpleTestCase):
     def test_a_json_con_nombres_en_espanol(self):
