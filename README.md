@@ -69,6 +69,8 @@ También son de los scripts las de la sesión web: `lector` (quién entra), `tok
 | `DELETE sessions/<id>/` | token | borrar una sesión |
 | `POST sessions/import/` | token | botón "Cargar sesiones": `{files: [{name, text}]}` → `{added, duplicated, invalid}` |
 | `POST sessions/ingest/` | **llave Unity** | el JSON de la sesión tal cual → **201** nueva / **409** ya existía / **400** inválida o fuera del catálogo |
+| `GET reports/incidents/?desde=&hasta=` | token | incidentes de las sesiones (fallas del circuito y multímetro mal usado) por rango de fechas |
+| `GET reports/export/?desde=&hasta=` | token | Excel con 3 hojas: Sesiones, Mediciones e Incidentes del rango (las fechas son opcionales) |
 
 Solo se aceptan sesiones de experimentos y mediciones que estén en el catálogo de la base
 (tablas `experimento` y `tarea`). Si no, la respuesta es 400 y el visor conserva la sesión

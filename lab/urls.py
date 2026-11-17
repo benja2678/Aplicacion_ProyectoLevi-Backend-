@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from .controladores import alumnos, estado, sesiones
+from .controladores import alumnos, estado, reportes, sesiones
 
 urlpatterns = [
     path('health/', estado.HealthControlador.as_view(), name='health'),
@@ -20,4 +20,8 @@ urlpatterns = [
     path('sessions/', sesiones.SesionesControlador.as_view(), name='sesiones'),
     # El id lleva ":" (de startedAt); <str:...> acepta todo menos "/".
     path('sessions/<str:id_sesion>/', sesiones.SesionControlador.as_view(), name='sesion'),
+
+    # Reportes: incidentes por rango de fechas y exportación a Excel.
+    path('reports/incidents/', reportes.IncidentesControlador.as_view(), name='reporte-incidentes'),
+    path('reports/export/', reportes.ExportarControlador.as_view(), name='reporte-exportar'),
 ]

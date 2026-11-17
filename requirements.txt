@@ -6,3 +6,4 @@ psycopg[binary]==3.3.8                 # conexión con PostgreSQL
 gunicorn==23.0.0                       # servidor de producción (solo funciona en Linux/Docker)
 python-dotenv==1.2.4                   # lee el archivo .env en tu PC
 tzdata==2026.6                         # zonas horarias (America/Santiago)
+openpyxl==3.1.5                        # crea los archivos Excel (exportación de reportes)
