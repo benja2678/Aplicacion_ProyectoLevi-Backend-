@@ -116,11 +116,20 @@ def resumir_por_alumno(sesiones: list[dict], mediciones: list[dict], incidentes:
 # Excel
 
 
+def _solo_de_alumnos(filas: list[dict]) -> list[dict]:
+    """Deja fuera lo de los códigos que no son de ningún alumno (pruebas, EDITOR, códigos sin registrar)."""
+    return [f for f in filas if f['alumno']]
+
+
 def generar_excel(rango: RangoFechasDTO) -> tuple[bytes, str]:
-    """Devuelve (contenido del .xlsx, nombre del archivo)."""
-    sesiones = reporte_dao.sesiones(rango.inicio, rango.fin)
-    mediciones = reporte_dao.mediciones(rango.inicio, rango.fin)
-    incidentes = reporte_dao.incidentes(rango.inicio, rango.fin)
+    """Devuelve (contenido del .xlsx, nombre del archivo).
+
+    Solo incluye las sesiones de alumnos registrados en el panel. La pantalla de
+    incidentes (listar_incidentes) sigue mostrando todo.
+    """
+    sesiones = _solo_de_alumnos(reporte_dao.sesiones(rango.inicio, rango.fin))
+    mediciones = _solo_de_alumnos(reporte_dao.mediciones(rango.inicio, rango.fin))
+    incidentes = _solo_de_alumnos(reporte_dao.incidentes(rango.inicio, rango.fin))
     contenido = reporte_excel.construir(
         rango=rango.descripcion(),
         alumnos=resumir_por_alumno(sesiones, mediciones, incidentes),

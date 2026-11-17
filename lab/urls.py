@@ -13,6 +13,7 @@ urlpatterns = [
 
     path('students/', alumnos.AlumnosControlador.as_view(), name='alumnos'),
     path('students/<str:codigo>/', alumnos.AlumnoControlador.as_view(), name='alumno'),
+    path('students/<str:codigo>/sessions/', alumnos.SesionesDelAlumnoControlador.as_view(), name='alumno-sesiones'),
 
     # Estas dos van ANTES de sessions/<id>/ para que no se confundan con un id.
     path('sessions/ingest/', sesiones.RecibirSesionControlador.as_view(), name='session-ingest'),

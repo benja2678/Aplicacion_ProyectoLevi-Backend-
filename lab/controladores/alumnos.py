@@ -6,6 +6,8 @@ Alumnos (solo el profesor, con token).
     GET    /api/students/<código>/   uno
     PUT    /api/students/<código>/   editar    (si cambia el código, cambia también el id)
     DELETE /api/students/<código>/   quitar    (sus sesiones se conservan)
+    DELETE /api/students/<código>/sessions/   borrar TODAS sus sesiones (el alumno se mantiene)
+                                              -> {"deleted": cuántas se borraron}
 """
 
 from rest_framework import status
@@ -37,3 +39,8 @@ class AlumnoControlador(APIView):
     def delete(self, request, codigo: str):
         alumno_servicio.eliminar(codigo)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SesionesDelAlumnoControlador(APIView):
+    def delete(self, request, codigo: str):
+        return Response({'deleted': alumno_servicio.borrar_sesiones(codigo)})

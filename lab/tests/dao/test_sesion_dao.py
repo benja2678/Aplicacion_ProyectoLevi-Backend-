@@ -105,3 +105,10 @@ class GuardarYBorrarTests(TestCase):
                 self.assertEqual(contar(tabla, 'sesion_id = %s', [2]), 0)
         self.assertEqual(contar('evento'), 29)  # quedan los de las sesiones 1 y 3
         self.assertEqual(sesion_dao.borrar(2), 0)
+
+    def test_borrar_todas_las_de_un_codigo(self):
+        self.assertEqual(sesion_dao.borrar_del_participante('A001'), 2)  # sesiones 1 y 2
+        self.assertEqual(contar('sesion'), 1)  # queda la de A015
+        self.assertEqual(contar('evento', 'sesion_id in (1, 2)'), 0)
+        self.assertEqual(contar('participante', 'codigo = %s', ['A001']), 1)  # el alumno no se toca
+        self.assertEqual(sesion_dao.borrar_del_participante('A001'), 0)

@@ -159,3 +159,8 @@ def buscar(codigo: str, experimento_id: str, inicio: datetime) -> dict | None:
 def borrar(sesion_id: int) -> int:
     """Borra la sesión; sus tareas, eventos, lecturas y rechazos se borran en cascada."""
     return ejecutar('delete from sesion where id = %s', [sesion_id])
+
+
+def borrar_del_participante(codigo: str) -> int:
+    """Borra TODAS las sesiones de un código (con su detalle, en cascada). Devuelve cuántas borró."""
+    return ejecutar('delete from sesion where participante_id = %s', [codigo])

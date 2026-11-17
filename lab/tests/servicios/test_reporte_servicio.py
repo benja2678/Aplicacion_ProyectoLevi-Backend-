@@ -158,6 +158,21 @@ class ExcelTests(BaseReporteTest):
         self.assertEqual(incidentes[1][5:7], ('Falla del circuito', 'Potencia excesiva en un componente'))
         self.assertEqual(incidentes[2][5:8], ('Multímetro mal usado', 'Fuera de la escala del multímetro', 'V2'))
 
+    def test_deja_fuera_los_codigos_sin_alumno(self):
+        sesion = self.dao.sesiones.return_value[0]
+        self.dao.sesiones.return_value.append(dict(sesion, codigo='A030', alumno='', asignatura=''))
+        self.dao.mediciones.return_value.append(dict(self.dao.mediciones.return_value[0], codigo='A030', alumno=''))
+        self.dao.incidentes.return_value.append(dict(incidente('rechazo', 'MeterOff'), codigo='EDITOR', alumno=''))
+        libro = self.excel()[0]
+        self.assertEqual(libro.sheetnames, ['Inicio', 'Resumen', 'A001 Camila Rojas', 'Sesiones', 'Mediciones', 'Incidentes'])
+        for hoja in ['Sesiones', 'Mediciones', 'Incidentes']:
+            with self.subTest(hoja):
+                codigos = {fila[0] for fila in list(libro[hoja].values)[1:]}
+                self.assertEqual(codigos, {'A001'})
+        self.assertEqual(libro['Resumen']['A6'].value, 1)  # un solo alumno
+        # La pantalla de incidentes del panel sigue mostrando todo.
+        self.assertEqual(len(reporte_servicio.listar_incidentes(RangoFechasDTO())), 3)
+
     def test_sin_datos_igual_genera_el_archivo(self):
         self.dao.incidentes.return_value = []
         self.dao.sesiones.return_value = []

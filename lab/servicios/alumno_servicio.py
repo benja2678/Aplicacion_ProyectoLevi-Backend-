@@ -8,6 +8,8 @@ pasar a la nueva base de datos):
 - Se puede registrar un alumno con un código cuyas sesiones ya llegaron: esas
   sesiones pasan a verse en su ficha.
 - Quitar un alumno NO borra sus sesiones: el código vuelve a quedar "sin alumno".
+- "Borrar todas sus sesiones" deja al alumno registrado, pero sin ninguna sesión
+  (sirve para "resetearlo"). No se puede deshacer.
 - Cambiar el código de un alumno lo mueve al código nuevo; las sesiones del código
   anterior quedan sin alumno (las sesiones nunca cambian de código: es el que
   registró el visor).
@@ -16,7 +18,7 @@ pasar a la nueva base de datos):
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from ..dao import participante_dao
+from ..dao import participante_dao, sesion_dao
 from ..dto.alumno import AlumnoDTO, AlumnoEntradaDTO
 from ..utils.errores import DatosInvalidos, NoEncontrado
 from . import letra_del_visor
@@ -102,3 +104,12 @@ def _liberar(codigo: str) -> None:
     """El código deja de ser de un alumno. Si además no tiene sesiones, se borra la fila."""
     participante_dao.quitar_datos_alumno(codigo)
     participante_dao.borrar_si_sobra(codigo)
+
+
+def borrar_sesiones(codigo: str) -> int:
+    """Borra todas las sesiones del alumno (el alumno se mantiene). Devuelve cuántas borró."""
+    with transaction.atomic():
+        fila = participante_dao.obtener(codigo, bloquear=True)
+        if fila is None or fila['nombre'] is None:
+            raise NoEncontrado()
+        return sesion_dao.borrar_del_participante(codigo)

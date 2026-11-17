@@ -65,12 +65,13 @@ También son de los scripts las de la sesión web: `lector` (quién entra), `tok
 | `GET auth/me/` | token | datos del usuario conectado |
 | `GET, POST students/` | token | listar / crear alumnos |
 | `GET, PUT, DELETE students/<código>/` | token | ver / editar / quitar un alumno (sus sesiones se conservan). El `id` de un alumno es su código |
+| `DELETE students/<código>/sessions/` | token | borra **todas** las sesiones del alumno (el alumno se mantiene). Responde `{"deleted": n}` |
 | `GET sessions/` | token | listar sesiones |
 | `DELETE sessions/<id>/` | token | borrar una sesión |
 | `POST sessions/import/` | token | botón "Cargar sesiones": `{files: [{name, text}]}` → `{added, duplicated, invalid}` |
 | `POST sessions/ingest/` | **llave Unity** | el JSON de la sesión tal cual → **201** nueva / **409** ya existía / **400** inválida o fuera del catálogo |
 | `GET reports/incidents/?desde=&hasta=` | token | incidentes de las sesiones (fallas del circuito y multímetro mal usado) por rango de fechas |
-| `GET reports/export/?desde=&hasta=` | token | Excel del rango (fechas opcionales): Inicio (instrucciones y enlaces), Resumen (todos los alumnos + gráficos), una hoja por alumno con sus métricas, y los datos completos (Sesiones, Mediciones, Incidentes) |
+| `GET reports/export/?desde=&hasta=` | token | Excel del rango (fechas opcionales), solo con alumnos registrados: Inicio (instrucciones y enlaces), Resumen (todos los alumnos + gráficos), una hoja por alumno con sus métricas, y los datos completos (Sesiones, Mediciones, Incidentes) |
 
 Solo se aceptan sesiones de experimentos y mediciones que estén en el catálogo de la base
 (tablas `experimento` y `tarea`). Si no, la respuesta es 400 y el visor conserva la sesión

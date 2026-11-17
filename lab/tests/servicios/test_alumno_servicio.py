@@ -160,3 +160,23 @@ class EliminarTests(BaseServicioTest):
             with self.subTest(codigo), self.assertRaises(NoEncontrado):
                 alumno_servicio.eliminar(codigo)
         self.dao.quitar_datos_alumno.assert_not_called()
+
+
+class BorrarSesionesTests(BaseServicioTest):
+    def setUp(self):
+        super().setUp()
+        self.sesiones = mock.patch('lab.servicios.alumno_servicio.sesion_dao').start()
+        self.sesiones.borrar_del_participante.return_value = 3
+
+    def test_borra_todas_y_el_alumno_se_mantiene(self):
+        self.filas(A001=fila())
+        self.assertEqual(alumno_servicio.borrar_sesiones('A001'), 3)
+        self.sesiones.borrar_del_participante.assert_called_once_with('A001')
+        self.dao.quitar_datos_alumno.assert_not_called()
+
+    def test_solo_de_alumnos_registrados(self):
+        self.filas(A015=fila('A015', None, None, None))  # código sin alumno
+        for codigo in ['Z999', 'A015']:
+            with self.subTest(codigo), self.assertRaises(NoEncontrado):
+                alumno_servicio.borrar_sesiones(codigo)
+        self.sesiones.borrar_del_participante.assert_not_called()

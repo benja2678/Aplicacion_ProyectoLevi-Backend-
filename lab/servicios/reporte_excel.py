@@ -323,6 +323,7 @@ def _hoja_inicio(libro: _Libro, rango: str, alumnos: list[AlumnoResumenDTO], hoj
         '3.  Cada alumno tiene su hoja (pestaña verde) con sus números, gráficos, sesiones, mediciones e incidentes.',
         '4.  En las tablas, la flecha ▼ de cada encabezado sirve para ordenar o filtrar (por ejemplo, solo un experimento).',
         '5.  En cada hoja, "← Volver al inicio" (arriba a la izquierda) te trae de vuelta aquí.',
+        '6.  Solo aparecen las sesiones de alumnos registrados en el panel (los códigos sin alumno, como las pruebas, no se incluyen).',
     ]
     for i, paso in enumerate(pasos, start=6):
         hoja.cell(i, 1, paso)

@@ -74,6 +74,17 @@ class AlumnosControladorTests(APISimpleTestCase):
         self.assertEqual(self.client.get('/api/students/Z999/').status_code, 404)
         self.assertEqual(self.client.delete('/api/students/Z999/').json(), {'detail': 'No encontrado.'})
 
+    def test_borrar_todas_sus_sesiones(self):
+        self.servicio.borrar_sesiones.return_value = 3
+        r = self.client.delete('/api/students/A001/sessions/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'deleted': 3})
+        self.servicio.borrar_sesiones.assert_called_once_with('A001')
+
+        self.servicio.borrar_sesiones.side_effect = NoEncontrado()
+        self.assertEqual(self.client.delete('/api/students/Z999/sessions/').status_code, 404)
+        self.assertEqual(self.client.get('/api/students/A001/sessions/').status_code, 405)  # solo DELETE
+
     def test_metodo_no_permitido(self):
         self.assertEqual(self.client.patch('/api/students/A001/', {}, format='json').status_code, 405)
 
